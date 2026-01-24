@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import hashlib
-from utils.calculos import calcular_custo_total, calcular_parcela
+from utils.calculo import calcular_custo_total, calcular_parcela
 from utils.excel import gerar_excel
 
 # -------------------------------
