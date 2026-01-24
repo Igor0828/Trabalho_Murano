@@ -6,9 +6,7 @@ from pathlib import Path
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel
 
-# ✅ sempre no topo antes de qualquer st.title/st.write
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
-
 
 # -------------------------------
 # 🔐 PROTEÇÃO POR SENHA (simples)
@@ -32,11 +30,9 @@ def check_password():
 
         st.stop()
 
-
 check_password()
 
 st.title("🧵 Sistema de Custo – Peça Piloto")
-
 
 # -------------------------------
 # 📌 Leitura de tabelas (Oficina / Lavanderia)
@@ -66,11 +62,12 @@ def carregar_tabela_csv(path_str: str):
 
     return df
 
-
 df_oficina = carregar_tabela_csv("data/oficina.csv")
 df_lavanderia = carregar_tabela_csv("data/lavanderia.csv")
 
-# Estados
+# -------------------------------
+# Estado da sessão
+# -------------------------------
 if "oficina_itens" not in st.session_state:
     st.session_state.oficina_itens = []
 
@@ -78,7 +75,6 @@ if "lavanderia_itens" not in st.session_state:
     st.session_state.lavanderia_itens = []
 
 if "adicionais_itens" not in st.session_state:
-    # 5 mais usados, estilo blocos
     st.session_state.adicionais_itens = [
         {"nome": "Cinto", "valor": 0.0},
         {"nome": "Fivela", "valor": 0.0},
@@ -86,7 +82,6 @@ if "adicionais_itens" not in st.session_state:
         {"nome": "Lenço", "valor": 0.0},
         {"nome": "Barra dobrada", "valor": 0.0},
     ]
-
 
 # -------------------------------
 # 🧾 Identificação
@@ -105,9 +100,8 @@ with cB:
 
 imagem = st.file_uploader("Imagem da peça piloto", ["jpg", "jpeg", "png"])
 
-
 # -------------------------------
-# 🧵 Tecido (R$/m + consumo)
+# 🧵 Tecido
 # -------------------------------
 st.subheader("🧵 Tecido")
 
@@ -124,41 +118,21 @@ with cT3:
     tecido_valor = tecido_preco_m * tecido_consumo_m
     st.metric("Custo do tecido (R$)", f"R$ {tecido_valor:.2f}")
 
-
 # -------------------------------
 # 💰 Custos base (SEM LINHA)
 # -------------------------------
 st.subheader("💰 Custos base")
 
 cb1, cb2, cb3 = st.columns(3)
-
 with cb1:
-    aviamentos = st.number_input(
-        "Aviamentos (R$)",
-        min_value=0.0,
-        value=3.80,
-        step=0.10
-    )
-
+    aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10)
 with cb2:
-    acabamento = st.number_input(
-        "Acabamento (R$)",
-        min_value=0.0,
-        value=6.50,
-        step=0.10
-    )
-
+    acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=6.50, step=0.10)
 with cb3:
-    despesa_fixa = st.number_input(
-        "Despesa fixa (R$)",
-        min_value=0.0,
-        value=5.50,
-        step=0.10
-    )
-
+    despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10)
 
 # -------------------------------
-# 🏭 Oficina / Lavanderia (somar serviços, sem repetir)
+# Função: UI somar serviços (sem repetir)
 # -------------------------------
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefix: str):
     if df is None:
@@ -178,11 +152,16 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
             key=f"{prefix}_select"
         )
     with colS2:
-        add = st.button("Adicionar", use_container_width=True, key=f"{prefix}_add_btn")
+        add = st.button(
+            "Adicionar",
+            use_container_width=True,
+            key=f"{prefix}_add_btn",
+            disabled=(escolhido == "(selecione)")
+        )
 
     if add and escolhido != "(selecione)":
         linha_df = df[df["servico"] == escolhido].iloc[0].to_dict()
-        valor_sugerido = float(linha_df.get("valor_min", 0.0))  # faixa começa no mínimo
+        valor_sugerido = float(linha_df.get("valor_min", 0.0))
 
         itens.append({
             "servico": str(linha_df.get("servico", "")),
@@ -247,20 +226,17 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
     st.info("Selecione os serviços realizados nesta peça.")
     return 0.0, 0.0, 0.0
 
-
 # -------------------------------
 # 🏭 Oficina
 # -------------------------------
-st.subheader("🏭 Oficina (serviços)")
+st.subheader("🏭 Oficina")
 of_min, of_max, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
-
 
 # -------------------------------
 # 🧼 Lavanderia
 # -------------------------------
-st.subheader("🧼 Lavanderia (serviços)")
+st.subheader("🧼 Lavanderia")
 lav_min, lav_max, total_lavanderia_real = ui_somar_servicos(df_lavanderia, "lavanderia_itens", "Lavanderia", "lavanderia")
-
 
 # -------------------------------
 # ➕ Adicionais (dinâmicos em blocos, sem repetir)
@@ -274,16 +250,24 @@ with col_add1:
         placeholder="Ex: Zíper, Etiqueta, Botão extra...",
         key="add_nome"
     )
+
 with col_add2:
     novo_valor = st.number_input(
         "Valor (R$)",
         min_value=0.0,
         value=0.0,
         step=0.10,
-        key="add_valor"
+        key="add_valor",
+        disabled=(not (novo_nome or "").strip())
     )
+
 with col_add3:
-    add_novo = st.button("Adicionar", use_container_width=True, key="add_btn")
+    add_novo = st.button(
+        "Adicionar",
+        use_container_width=True,
+        key="add_btn",
+        disabled=(not (novo_nome or "").strip())
+    )
 
 nomes_existentes = {i["nome"].strip().lower() for i in st.session_state.adicionais_itens}
 
@@ -315,7 +299,6 @@ for idx, item in enumerate(st.session_state.adicionais_itens):
             )
             st.session_state.adicionais_itens[idx]["valor"] = float(val)
 
-            # Remove apenas os adicionados depois (os 5 primeiros ficam)
             if idx >= 5:
                 if st.button("Remover", key=f"ad_rem_{idx}", use_container_width=True):
                     st.session_state.adicionais_itens.pop(idx)
@@ -324,12 +307,11 @@ for idx, item in enumerate(st.session_state.adicionais_itens):
 total_adicionais = sum(i["valor"] for i in st.session_state.adicionais_itens)
 st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 
-# Exporta só >0
+# ✅ garante que 'adicionais' sempre exista
 adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens if i["valor"] > 0}
 
-
 # -------------------------------
-# 📌 RESUMO FINAL (TOTAL destacado)
+# 📌 RESUMO FINAL
 # -------------------------------
 st.divider()
 st.subheader("📌 Resumo final")
@@ -356,12 +338,6 @@ with st.container(border=True):
     st.divider()
     st.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
 
-# 🔹 garante que 'adicionais' sempre exista
-adicionais = {
-    i["nome"]: i["valor"]
-    for i in st.session_state.adicionais_itens
-    if i["valor"] > 0
-}
 # -------------------------------
 # ✅ Gerar custo + Excel
 # -------------------------------
@@ -379,10 +355,10 @@ if gerar:
         "Adicionais (total)": total_adicionais,
     }
 
-    # mantém o total idêntico ao resumo final
-    total = total_geral_preview
+    # total igual ao resumo final
+    total = float(total_geral_preview)
 
-    # (opcional) validação básica
+    # sanity check
     _ = calcular_custo_total(custos)
 
     st.success(f"💰 Custo total: R$ {total:.2f}")
@@ -420,44 +396,42 @@ if gerar:
     )
 
     # -------------------------------
-# 📚 Histórico (robusto e limpo)
-# -------------------------------
-os.makedirs("data", exist_ok=True)
-hist_path = "data/historico.csv"
+    # 📚 Histórico (ROBUSTO)
+    # -------------------------------
+    os.makedirs("data", exist_ok=True)
+    hist_path = "data/historico.csv"
 
-registro = {
-    "Referência": ref,
-    "Descrição": desc,
-    "Tipo de peça": tipo_peca,
-    "Total": round(float(total), 2)
-}
+    registro = {
+        "Referência": ref,
+        "Descrição": desc,
+        "Tipo de peça": tipo_peca,
+        "Total": round(float(total), 2),
+    }
+    df_novo = pd.DataFrame([registro])
 
-df_novo = pd.DataFrame([registro])
+    colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
 
-colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
+    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
+        try:
+            df_antigo = pd.read_csv(hist_path)
 
-if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-    try:
-        df_antigo = pd.read_csv(hist_path)
+            # remove colunas "Unnamed"
+            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
 
-        # remove colunas Unnamed se existirem
-        df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
+            # garante estrutura correta
+            if list(df_antigo.columns) != colunas_esperadas:
+                df_antigo = pd.DataFrame(columns=colunas_esperadas)
 
-        # garante estrutura correta
-        if list(df_antigo.columns) != colunas_esperadas:
-            df_antigo = pd.DataFrame(columns=colunas_esperadas)
+            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
+            df_final.to_csv(hist_path, index=False)
 
-        df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-        df_final.to_csv(hist_path, index=False)
-
-    except Exception:
-        # se qualquer coisa der errado, recria o arquivo corretamente
+        except Exception:
+            df_novo.to_csv(hist_path, index=False)
+    else:
         df_novo.to_csv(hist_path, index=False)
-else:
-    df_novo.to_csv(hist_path, index=False)
 
 # -------------------------------
-# 📚 Exibir histórico (sem quebrar)
+# 📚 Exibir histórico
 # -------------------------------
 st.divider()
 st.subheader("📚 Histórico de Peças")
@@ -465,7 +439,10 @@ st.subheader("📚 Histórico de Peças")
 hist_path = "data/historico.csv"
 if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
     try:
-        st.dataframe(pd.read_csv(hist_path), use_container_width=True)
+        df_hist = pd.read_csv(hist_path)
+        # remove Unnamed se houver
+        df_hist = df_hist.loc[:, ~df_hist.columns.astype(str).str.startswith("Unnamed")]
+        st.dataframe(df_hist, use_container_width=True)
     except pd.errors.EmptyDataError:
         st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
 else:
