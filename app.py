@@ -20,7 +20,7 @@ def check_password():
         if st.button("Entrar"):
             if senha == "Murano1234":
                 st.session_state.autenticado = True
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Senha incorreta")
 
