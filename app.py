@@ -115,4 +115,14 @@ if submit:
 # --- Histórico ---
 if os.path.exists("data/historico.csv"):
     st.subheader("📚 Histórico de Peças")
-    st.dataframe(pd.read_csv("data/historico.csv"))
+    st.dataframe(pd.read_csv("data/historico.csv"))# --- Histórico ---
+path = "data/historico.csv"
+if os.path.exists(path):
+    st.subheader("📚 Histórico de Peças")
+    try:
+        df_hist = pd.read_csv(path)
+        st.dataframe(df_hist)
+    except pd.errors.EmptyDataError:
+        st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
+else:
+    st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
