@@ -420,23 +420,41 @@ if gerar:
     )
 
     # -------------------------------
-    # 📚 Histórico
-    # -------------------------------
-    os.makedirs("data", exist_ok=True)
-    hist_path = "data/historico.csv"
+# 📚 Histórico (robusto e limpo)
+# -------------------------------
+os.makedirs("data", exist_ok=True)
+hist_path = "data/historico.csv"
 
-    nova_linha = pd.DataFrame([{
-        "Referência": ref,
-        "Descrição": desc,
-        "Tipo de peça": tipo_peca,
-        "Total": total
-    }])
+registro = {
+    "Referência": ref,
+    "Descrição": desc,
+    "Tipo de peça": tipo_peca,
+    "Total": round(float(total), 2)
+}
 
-    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-        nova_linha.to_csv(hist_path, mode="a", header=False, index=False)
-    else:
-        nova_linha.to_csv(hist_path, index=False)
+df_novo = pd.DataFrame([registro])
 
+colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
+
+if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
+    try:
+        df_antigo = pd.read_csv(hist_path)
+
+        # remove colunas Unnamed se existirem
+        df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
+
+        # garante estrutura correta
+        if list(df_antigo.columns) != colunas_esperadas:
+            df_antigo = pd.DataFrame(columns=colunas_esperadas)
+
+        df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
+        df_final.to_csv(hist_path, index=False)
+
+    except Exception:
+        # se qualquer coisa der errado, recria o arquivo corretamente
+        df_novo.to_csv(hist_path, index=False)
+else:
+    df_novo.to_csv(hist_path, index=False)
 
 # -------------------------------
 # 📚 Exibir histórico (sem quebrar)
