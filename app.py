@@ -48,6 +48,7 @@ def carregar_tabela_csv(path_str: str):
         return None
 
     df = pd.read_csv(path)
+
     # Normaliza colunas esperadas
     for col in ["valor_min", "valor_max"]:
         if col not in df.columns:
@@ -125,27 +126,40 @@ with cT3:
 
 
 # -------------------------------
-# 💰 Custos base (presets)
+# 💰 Custos base (SEM LINHA)
 # -------------------------------
 st.subheader("💰 Custos base")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10)
-    linha = st.number_input("Linha (R$)", min_value=0.0, value=2.40, step=0.10)
+cb1, cb2, cb3 = st.columns(3)
 
-with col2:
-    acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=6.50, step=0.10)
+with cb1:
+    aviamentos = st.number_input(
+        "Aviamentos (R$)",
+        min_value=0.0,
+        value=3.80,
+        step=0.10
+    )
 
-with col3:
-    despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10)
+with cb2:
+    acabamento = st.number_input(
+        "Acabamento (R$)",
+        min_value=0.0,
+        value=6.50,
+        step=0.10
+    )
+
+with cb3:
+    despesa_fixa = st.number_input(
+        "Despesa fixa (R$)",
+        min_value=0.0,
+        value=5.50,
+        step=0.10
+    )
 
 
 # -------------------------------
-# 🏭 Oficina (somar serviços, sem repetir)
+# 🏭 Oficina / Lavanderia (somar serviços, sem repetir)
 # -------------------------------
-st.subheader("🏭 Oficina (serviços)")
-
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefix: str):
     if df is None:
         st.warning(f"Tabela não encontrada: data/{prefix}.csv")
@@ -230,18 +244,21 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
         st.session_state[state_key] = itens
         return total_min, total_max, total_real
 
-    st.info("Adicione serviços para compor o custo.")
+    st.info("Selecione os serviços realizados nesta peça.")
     return 0.0, 0.0, 0.0
 
 
+# -------------------------------
+# 🏭 Oficina
+# -------------------------------
+st.subheader("🏭 Oficina (serviços)")
 of_min, of_max, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
 
 
 # -------------------------------
-# 🧼 Lavanderia (igual oficina)
+# 🧼 Lavanderia
 # -------------------------------
 st.subheader("🧼 Lavanderia (serviços)")
-
 lav_min, lav_max, total_lavanderia_real = ui_somar_servicos(df_lavanderia, "lavanderia_itens", "Lavanderia", "lavanderia")
 
 
@@ -252,9 +269,19 @@ st.subheader("➕ Adicionais (valores manuais)")
 
 col_add1, col_add2, col_add3 = st.columns([2.2, 1.2, 1])
 with col_add1:
-    novo_nome = st.text_input("Nome do adicional", placeholder="Ex: Zíper, Etiqueta, Botão extra...", key="add_nome")
+    novo_nome = st.text_input(
+        "Nome do adicional",
+        placeholder="Ex: Zíper, Etiqueta, Botão extra...",
+        key="add_nome"
+    )
 with col_add2:
-    novo_valor = st.number_input("Valor (R$)", min_value=0.0, value=0.0, step=0.10, key="add_valor")
+    novo_valor = st.number_input(
+        "Valor (R$)",
+        min_value=0.0,
+        value=0.0,
+        step=0.10,
+        key="add_valor"
+    )
 with col_add3:
     add_novo = st.button("Adicionar", use_container_width=True, key="add_btn")
 
@@ -300,13 +327,14 @@ st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 # Exporta só >0
 adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens if i["valor"] > 0}
 
+
 # -------------------------------
-# 📌 RESUMO FINAL (CARD)
+# 📌 RESUMO FINAL (TOTAL destacado)
 # -------------------------------
 st.divider()
 st.subheader("📌 Resumo final")
 
-total_base = aviamentos + linha + acabamento + despesa_fixa
+total_base = aviamentos + acabamento + despesa_fixa
 total_geral_preview = (
     tecido_valor
     + total_base
@@ -316,15 +344,18 @@ total_geral_preview = (
 )
 
 with st.container(border=True):
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Tecido", f"R$ {tecido_valor:.2f}")
-    c2.metric("Custos base", f"R$ {total_base:.2f}")
-    c3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Tecido", f"R$ {tecido_valor:.2f}")
+    r2.metric("Custos base", f"R$ {total_base:.2f}")
+    r3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
 
-    c4, c5, c6 = st.columns(3)
-    c4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
-    c5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
-    c6.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
+    r4, r5 = st.columns(2)
+    r4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
+    r5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
+
+    st.divider()
+    st.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
+
 
 # -------------------------------
 # ✅ Gerar custo + Excel
@@ -336,7 +367,6 @@ if gerar:
     custos = {
         "Tecido": tecido_valor,
         "Aviamentos": aviamentos,
-        "Linha": linha,
         "Acabamento": acabamento,
         "Despesa fixa": despesa_fixa,
         "Oficina (real)": total_oficina_real,
@@ -344,7 +374,11 @@ if gerar:
         "Adicionais (total)": total_adicionais,
     }
 
+    # mantém o total idêntico ao resumo final
     total = total_geral_preview
+
+    # (opcional) validação básica
+    _ = calcular_custo_total(custos)
 
     st.success(f"💰 Custo total: R$ {total:.2f}")
 
