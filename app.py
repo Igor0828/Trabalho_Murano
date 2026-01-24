@@ -345,6 +345,7 @@ st.divider()
 gerar = st.button("✅ Gerar custo e Excel", type="primary", use_container_width=True)
 
 if gerar:
+    # 1️⃣ custos
     custos = {
         "Tecido": tecido_valor,
         "Aviamentos": aviamentos,
@@ -354,6 +355,60 @@ if gerar:
         "Lavanderia (real)": total_lavanderia_real,
         "Adicionais (total)": total_adicionais,
     }
+
+    # 2️⃣ total (ESSENCIAL)
+    total = float(total_geral_preview)
+
+    st.success(f"💰 Custo total: R$ {total:.2f}")
+
+    # 3️⃣ gerar excel
+    excel_buffer = gerar_excel(
+        dados_peca=dados_peca,
+        custos=custos,
+        total=total,
+        oficina_itens=st.session_state.oficina_itens,
+        lavanderia_itens=st.session_state.lavanderia_itens,
+        adicionais=adicionais,
+    )
+
+    st.download_button(
+        "📥 Baixar Excel",
+        data=excel_buffer.getvalue(),
+        file_name="custo_peca_piloto.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    # 4️⃣ HISTÓRICO → TEM QUE FICAR AQUI DENTRO
+    os.makedirs("data", exist_ok=True)
+    hist_path = "data/historico.csv"
+
+    registro = {
+        "Referência": ref,
+        "Descrição": desc,
+        "Tipo de peça": tipo_peca,
+        "Total": round(total, 2),
+    }
+
+    df_novo = pd.DataFrame([registro])
+    colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
+
+    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
+        try:
+            df_antigo = pd.read_csv(hist_path)
+            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
+
+            if list(df_antigo.columns) != colunas_esperadas:
+                df_antigo = pd.DataFrame(columns=colunas_esperadas)
+
+            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
+            df_final.to_csv(hist_path, index=False)
+
+        except Exception:
+            df_novo.to_csv(hist_path, index=False)
+    else:
+        df_novo.to_csv(hist_path, index=False)
+
 
     # total igual ao resumo final
     total = float(total_geral_preview)
