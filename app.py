@@ -301,7 +301,7 @@ st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens if i["valor"] > 0}
 
 # -------------------------------
-# 📌 RESUMO FINAL (sempre visível)
+# 📌 RESUMO FINAL (CARD)
 # -------------------------------
 st.divider()
 st.subheader("📌 Resumo final")
@@ -315,15 +315,16 @@ total_geral_preview = (
     + total_adicionais
 )
 
-r1, r2, r3 = st.columns(3)
-r1.metric("Tecido", f"R$ {tecido_valor:.2f}")
-r2.metric("Custos base", f"R$ {total_base:.2f}")
-r3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
+with st.container(border=True):
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Tecido", f"R$ {tecido_valor:.2f}")
+    c2.metric("Custos base", f"R$ {total_base:.2f}")
+    c3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
 
-r4, r5, r6 = st.columns(3)
-r4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
-r5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
-r6.metric("TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
+    c4, c5, c6 = st.columns(3)
+    c4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
+    c5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
+    c6.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
 
 # -------------------------------
 # ✅ Gerar custo + Excel
