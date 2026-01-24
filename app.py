@@ -19,7 +19,7 @@ def check_password():
         senha = st.text_input("Digite a senha", type="password")
 
         if st.button("Entrar"):
-            if hashlib.sha256(senha.encode()).hexdigest() == "COLE_AQUI_O_HASH":
+            if hashlib.sha256(senha.encode()).hexdigest() == "123456":
                 st.session_state.autenticado = True
                 st.experimental_rerun()
             else:
