@@ -356,7 +356,12 @@ with st.container(border=True):
     st.divider()
     st.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
 
-
+# 🔹 garante que 'adicionais' sempre exista
+adicionais = {
+    i["nome"]: i["valor"]
+    for i in st.session_state.adicionais_itens
+    if i["valor"] > 0
+}
 # -------------------------------
 # ✅ Gerar custo + Excel
 # -------------------------------
