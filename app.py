@@ -8,6 +8,7 @@ from utils.excel import gerar_excel
 
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
 
+
 # -------------------------------
 # 🔐 PROTEÇÃO POR SENHA (simples)
 # -------------------------------
@@ -30,9 +31,10 @@ def check_password():
 
         st.stop()
 
-check_password()
 
+check_password()
 st.title("🧵 Sistema de Custo – Peça Piloto")
+
 
 # -------------------------------
 # 📌 Leitura de tabelas (Oficina / Lavanderia)
@@ -46,21 +48,25 @@ def carregar_tabela_csv(path_str: str):
     df = pd.read_csv(path)
 
     # Normaliza colunas esperadas
-    for col in ["valor_min", "valor_max"]:
-        if col not in df.columns:
-            df[col] = 0.0
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
-
     if "servico" not in df.columns:
         df["servico"] = ""
-
+    if "valor_min" not in df.columns:
+        df["valor_min"] = 0.0
+    if "valor_max" not in df.columns:
+        df["valor_max"] = df["valor_min"]
     if "nota_ziad" not in df.columns:
         df["nota_ziad"] = ""
 
-    df["servico"] = df["servico"].astype(str)
-    df["nota_ziad"] = df["nota_ziad"].fillna("").astype(str)
+    df["servico"] = df["servico"].fillna("").astype(str).str.strip()
+    df["nota_ziad"] = df["nota_ziad"].fillna("").astype(str).str.strip()
+    df["valor_min"] = pd.to_numeric(df["valor_min"], errors="coerce").fillna(0.0)
+    df["valor_max"] = pd.to_numeric(df["valor_max"], errors="coerce").fillna(0.0)
+
+    # Remove linhas vazias
+    df = df[df["servico"].str.len() > 0].reset_index(drop=True)
 
     return df
+
 
 df_oficina = carregar_tabela_csv("data/oficina.csv")
 df_lavanderia = carregar_tabela_csv("data/lavanderia.csv")
@@ -83,6 +89,7 @@ if "adicionais_itens" not in st.session_state:
         {"nome": "Barra dobrada", "valor": 0.0},
     ]
 
+
 # -------------------------------
 # 🧾 Identificação
 # -------------------------------
@@ -100,6 +107,7 @@ with cB:
 
 imagem = st.file_uploader("Imagem da peça piloto", ["jpg", "jpeg", "png"])
 
+
 # -------------------------------
 # 🧵 Tecido
 # -------------------------------
@@ -115,8 +123,9 @@ with cT2:
     tecido_consumo_m = st.number_input("Consumo (m)", min_value=0.0, value=0.0, step=0.01)
 
 with cT3:
-    tecido_valor = tecido_preco_m * tecido_consumo_m
+    tecido_valor = float(tecido_preco_m) * float(tecido_consumo_m)
     st.metric("Custo do tecido (R$)", f"R$ {tecido_valor:.2f}")
+
 
 # -------------------------------
 # 💰 Custos base (SEM LINHA)
@@ -131,13 +140,14 @@ with cb2:
 with cb3:
     despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10)
 
+
 # -------------------------------
 # Função: UI somar serviços (sem repetir)
 # -------------------------------
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefix: str):
     if df is None:
         st.warning(f"Tabela não encontrada: data/{prefix}.csv")
-        return 0.0, 0.0, 0.0  # tabela_min, tabela_max, real
+        return 0.0, 0.0, 0.0
 
     itens = st.session_state[state_key]
     selecionados = {i["servico"] for i in itens}
@@ -189,10 +199,12 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
                     if item.get("nota_ziad"):
                         st.caption(f"🟥 Nota: {item['nota_ziad']}")
 
-                    if float(item["valor_min"]) != float(item["valor_max"]):
-                        st.caption(f"Tabela: R$ {item['valor_min']:.2f} – R$ {item['valor_max']:.2f}")
+                    vmin = float(item["valor_min"])
+                    vmax = float(item["valor_max"])
+                    if vmin != vmax:
+                        st.caption(f"Tabela: R$ {vmin:.2f} – R$ {vmax:.2f}")
                     else:
-                        st.caption(f"Tabela: R$ {item['valor_min']:.2f}")
+                        st.caption(f"Tabela: R$ {vmin:.2f}")
 
                 with c2:
                     novo = st.number_input(
@@ -226,17 +238,19 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
     st.info("Selecione os serviços realizados nesta peça.")
     return 0.0, 0.0, 0.0
 
+
 # -------------------------------
 # 🏭 Oficina
 # -------------------------------
 st.subheader("🏭 Oficina")
-of_min, of_max, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
+_, _, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
 
 # -------------------------------
 # 🧼 Lavanderia
 # -------------------------------
 st.subheader("🧼 Lavanderia")
-lav_min, lav_max, total_lavanderia_real = ui_somar_servicos(df_lavanderia, "lavanderia_itens", "Lavanderia", "lavanderia")
+_, _, total_lavanderia_real = ui_somar_servicos(df_lavanderia, "lavanderia_itens", "Lavanderia", "lavanderia")
+
 
 # -------------------------------
 # ➕ Adicionais (dinâmicos em blocos, sem repetir)
@@ -304,11 +318,12 @@ for idx, item in enumerate(st.session_state.adicionais_itens):
                     st.session_state.adicionais_itens.pop(idx)
                     st.rerun()
 
-total_adicionais = sum(i["valor"] for i in st.session_state.adicionais_itens)
+total_adicionais = float(sum(i["valor"] for i in st.session_state.adicionais_itens))
 st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 
-# ✅ garante que 'adicionais' sempre exista
-adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens if i["valor"] > 0}
+# ✅ garante que 'adicionais' sempre exista (para Excel)
+adicionais = {i["nome"]: float(i["valor"]) for i in st.session_state.adicionais_itens if float(i["valor"]) > 0}
+
 
 # -------------------------------
 # 📌 RESUMO FINAL
@@ -316,13 +331,13 @@ adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens i
 st.divider()
 st.subheader("📌 Resumo final")
 
-total_base = aviamentos + acabamento + despesa_fixa
+total_base = float(aviamentos) + float(acabamento) + float(despesa_fixa)
 total_geral_preview = (
-    tecido_valor
+    float(tecido_valor)
     + total_base
-    + total_oficina_real
-    + total_lavanderia_real
-    + total_adicionais
+    + float(total_oficina_real)
+    + float(total_lavanderia_real)
+    + float(total_adicionais)
 )
 
 with st.container(border=True):
@@ -338,6 +353,7 @@ with st.container(border=True):
     st.divider()
     st.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
 
+
 # -------------------------------
 # ✅ Gerar custo + Excel
 # -------------------------------
@@ -345,75 +361,20 @@ st.divider()
 gerar = st.button("✅ Gerar custo e Excel", type="primary", use_container_width=True)
 
 if gerar:
-    # 1️⃣ custos
     custos = {
-        "Tecido": tecido_valor,
-        "Aviamentos": aviamentos,
-        "Acabamento": acabamento,
-        "Despesa fixa": despesa_fixa,
-        "Oficina (real)": total_oficina_real,
-        "Lavanderia (real)": total_lavanderia_real,
-        "Adicionais (total)": total_adicionais,
+        "Tecido": float(tecido_valor),
+        "Aviamentos": float(aviamentos),
+        "Acabamento": float(acabamento),
+        "Despesa fixa": float(despesa_fixa),
+        "Oficina (real)": float(total_oficina_real),
+        "Lavanderia (real)": float(total_lavanderia_real),
+        "Adicionais (total)": float(total_adicionais),
     }
-
-    # 2️⃣ total (ESSENCIAL)
-    total = float(total_geral_preview)
-
-    st.success(f"💰 Custo total: R$ {total:.2f}")
-
-    # 3️⃣ gerar excel
-    excel_buffer = gerar_excel(
-        dados_peca=dados_peca,
-        custos=custos,
-        total=total,
-        oficina_itens=st.session_state.oficina_itens,
-        lavanderia_itens=st.session_state.lavanderia_itens,
-        adicionais=adicionais,
-    )
-
-    st.download_button(
-        "📥 Baixar Excel",
-        data=excel_buffer.getvalue(),
-        file_name="custo_peca_piloto.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-
-    # 4️⃣ HISTÓRICO → TEM QUE FICAR AQUI DENTRO
-    os.makedirs("data", exist_ok=True)
-    hist_path = "data/historico.csv"
-
-    registro = {
-        "Referência": ref,
-        "Descrição": desc,
-        "Tipo de peça": tipo_peca,
-        "Total": round(total, 2),
-    }
-
-    df_novo = pd.DataFrame([registro])
-    colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
-
-    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-        try:
-            df_antigo = pd.read_csv(hist_path)
-            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
-
-            if list(df_antigo.columns) != colunas_esperadas:
-                df_antigo = pd.DataFrame(columns=colunas_esperadas)
-
-            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-            df_final.to_csv(hist_path, index=False)
-
-        except Exception:
-            df_novo.to_csv(hist_path, index=False)
-    else:
-        df_novo.to_csv(hist_path, index=False)
-
 
     # total igual ao resumo final
     total = float(total_geral_preview)
 
-    # sanity check
+    # sanity check (opcional)
     _ = calcular_custo_total(custos)
 
     st.success(f"💰 Custo total: R$ {total:.2f}")
@@ -429,8 +390,8 @@ if gerar:
         "Cor/Lavagem": cor_lavagem,
         "Tecido (nome)": tecido_nome,
         "Tecido (tipo)": tecido_tipo,
-        "Preço tecido (R$/m)": tecido_preco_m,
-        "Consumo (m)": tecido_consumo_m,
+        "Preço tecido (R$/m)": float(tecido_preco_m),
+        "Consumo (m)": float(tecido_consumo_m),
     }
 
     excel_buffer = gerar_excel(
@@ -451,7 +412,7 @@ if gerar:
     )
 
     # -------------------------------
-    # 📚 Histórico (ROBUSTO)
+    # 📚 Histórico (ROBUSTO) - DENTRO do if gerar
     # -------------------------------
     os.makedirs("data", exist_ok=True)
     hist_path = "data/historico.csv"
@@ -463,7 +424,6 @@ if gerar:
         "Total": round(float(total), 2),
     }
     df_novo = pd.DataFrame([registro])
-
     colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
 
     if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
@@ -473,7 +433,7 @@ if gerar:
             # remove colunas "Unnamed"
             df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
 
-            # garante estrutura correta
+            # se estrutura não bater, recria do zero (mantendo só o novo)
             if list(df_antigo.columns) != colunas_esperadas:
                 df_antigo = pd.DataFrame(columns=colunas_esperadas)
 
@@ -485,6 +445,7 @@ if gerar:
     else:
         df_novo.to_csv(hist_path, index=False)
 
+
 # -------------------------------
 # 📚 Exibir histórico
 # -------------------------------
@@ -495,7 +456,6 @@ hist_path = "data/historico.csv"
 if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
     try:
         df_hist = pd.read_csv(hist_path)
-        # remove Unnamed se houver
         df_hist = df_hist.loc[:, ~df_hist.columns.astype(str).str.startswith("Unnamed")]
         st.dataframe(df_hist, use_container_width=True)
     except pd.errors.EmptyDataError:
