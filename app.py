@@ -300,6 +300,30 @@ st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 # Exporta só >0
 adicionais = {i["nome"]: i["valor"] for i in st.session_state.adicionais_itens if i["valor"] > 0}
 
+# -------------------------------
+# 📌 RESUMO FINAL (sempre visível)
+# -------------------------------
+st.divider()
+st.subheader("📌 Resumo final")
+
+total_base = aviamentos + linha + acabamento + despesa_fixa
+total_geral_preview = (
+    tecido_valor
+    + total_base
+    + total_oficina_real
+    + total_lavanderia_real
+    + total_adicionais
+)
+
+r1, r2, r3 = st.columns(3)
+r1.metric("Tecido", f"R$ {tecido_valor:.2f}")
+r2.metric("Custos base", f"R$ {total_base:.2f}")
+r3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
+
+r4, r5, r6 = st.columns(3)
+r4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
+r5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
+r6.metric("TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
 
 # -------------------------------
 # ✅ Gerar custo + Excel
@@ -319,7 +343,7 @@ if gerar:
         "Adicionais (total)": total_adicionais,
     }
 
-    total = calcular_custo_total(custos)
+    total = total_geral_preview
 
     st.success(f"💰 Custo total: R$ {total:.2f}")
 
