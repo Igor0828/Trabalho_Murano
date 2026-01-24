@@ -290,4 +290,3 @@ if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
         st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
 else:
     st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
-
