@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-import hashlib
 from utils.calculo import calcular_custo_total, calcular_parcela
 from utils.excel import gerar_excel
 
@@ -19,7 +18,7 @@ def check_password():
         senha = st.text_input("Digite a senha", type="password")
 
         if st.button("Entrar"):
-            if hashlib.sha256(senha.encode()).hexdigest() == st.secrets["PASSWORD_HASH"]:
+            if senha == "Murano1234":
                 st.session_state.autenticado = True
                 st.experimental_rerun()
             else:
