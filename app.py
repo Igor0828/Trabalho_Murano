@@ -494,9 +494,6 @@ if btn_excel:
     if not linha_padrao["Referência"]:
         st.error("Preencha a Referência antes de gerar o Excel.")
     else:
-        # também salva no histórico
-        salvar_historico(linha_padrao)
-
         excel_buffer = gerar_excel_simples(linha_padrao)
         st.success("✅ Excel pronto!")
 
