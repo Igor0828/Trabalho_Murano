@@ -2,9 +2,11 @@ import streamlit as st
 import pandas as pd
 import os
 from pathlib import Path
+from io import BytesIO
+import qrcode
 
 from utils.calculo import calcular_custo_total
-from utils.excel import gerar_excel
+from utils.excel import gerar_excel_simples
 
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
 
@@ -32,7 +34,129 @@ def check_password():
         st.stop()
 
 
+def get_app_url() -> str:
+    url = st.secrets.get("APP_URL", "")
+    return url.rstrip("/") if url else ""
+
+
+def gerar_qr_png(url: str) -> bytes:
+    img = qrcode.make(url)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def ler_historico(hist_path: str) -> pd.DataFrame:
+    if not os.path.exists(hist_path) or os.path.getsize(hist_path) == 0:
+        return pd.DataFrame()
+
+    df = pd.read_csv(hist_path)
+    df = df.loc[:, ~df.columns.astype(str).str.startswith("Unnamed")]
+    return df
+
+
+def salvar_historico(linha: dict):
+    os.makedirs("data", exist_ok=True)
+    hist_path = "data/historico.csv"
+
+    colunas = [
+        "Referência",
+        "Descrição",
+        "Tecido",
+        "Oficina",
+        "Lavanderia",
+        "Aviamento",
+        "Detalhes (adicionais)",
+        "Despesa Fixa",
+        "Total",
+    ]
+
+    df_novo = pd.DataFrame([linha], columns=colunas)
+
+    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
+        try:
+            df_antigo = pd.read_csv(hist_path)
+            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
+
+            # se estrutura estiver diferente, recria mantendo o antigo só nas colunas esperadas (se existirem)
+            if list(df_antigo.columns) != colunas:
+                df_antigo = df_antigo.reindex(columns=colunas)
+
+            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
+            df_final.to_csv(hist_path, index=False)
+        except Exception:
+            df_novo.to_csv(hist_path, index=False)
+    else:
+        df_novo.to_csv(hist_path, index=False)
+
+
+# -------------------------------
+# ✅ Login
+# -------------------------------
 check_password()
+
+
+# -------------------------------
+# 🧾 Ficha técnica (modo leve via QR)
+# URL: ?view=ficha&ref=XXXX
+# -------------------------------
+params = st.query_params
+view = params.get("view", "")
+ref_qr = params.get("ref", "")
+
+if view == "ficha" and ref_qr:
+    st.title("🧾 Ficha Técnica (rápida)")
+
+    hist_path = "data/historico.csv"
+    df = ler_historico(hist_path)
+
+    if df.empty:
+        st.error("Histórico vazio. Gere ou adicione uma peça primeiro.")
+        st.stop()
+
+    linha = df[df["Referência"].astype(str) == str(ref_qr)]
+    if linha.empty:
+        st.error("Referência não encontrada no histórico.")
+        st.stop()
+
+    item = linha.iloc[-1]
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Referência", str(item["Referência"]))
+        st.write(f"**Descrição:** {item.get('Descrição','')}")
+    with c2:
+        st.metric("Total", f"R$ {float(item.get('Total',0)):.2f}")
+
+    st.divider()
+    st.subheader("📌 Resumo de custos")
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Tecido", f"R$ {float(item.get('Tecido',0)):.2f}")
+    r2.metric("Oficina", f"R$ {float(item.get('Oficina',0)):.2f}")
+    r3.metric("Lavanderia", f"R$ {float(item.get('Lavanderia',0)):.2f}")
+
+    r4, r5, r6 = st.columns(3)
+    r4.metric("Aviamento", f"R$ {float(item.get('Aviamento',0)):.2f}")
+    r5.metric("Adicionais", f"R$ {float(item.get('Detalhes (adicionais)',0)):.2f}")
+    r6.metric("Despesa fixa", f"R$ {float(item.get('Despesa Fixa',0)):.2f}")
+
+    st.divider()
+    st.subheader("📥 Excel simples (desta ficha)")
+    excel_buffer = gerar_excel_simples(item.to_dict())
+    st.download_button(
+        "📥 Baixar Excel",
+        data=excel_buffer.getvalue(),
+        file_name=f"ficha_{ref_qr}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    st.stop()
+
+
+# -------------------------------
+# App normal
+# -------------------------------
 st.title("🧵 Sistema de Custo – Peça Piloto")
 
 
@@ -46,15 +170,9 @@ def carregar_tabela_csv(path_str: str):
         return None
 
     df = pd.read_csv(path)
-
-    if "servico" not in df.columns:
-        df["servico"] = ""
-    if "valor_min" not in df.columns:
-        df["valor_min"] = 0.0
-    if "valor_max" not in df.columns:
-        df["valor_max"] = df["valor_min"]
-    if "nota_ziad" not in df.columns:
-        df["nota_ziad"] = ""
+    for col in ["servico", "valor_min", "valor_max", "nota_ziad"]:
+        if col not in df.columns:
+            df[col] = "" if col in ["servico", "nota_ziad"] else 0.0
 
     df["servico"] = df["servico"].fillna("").astype(str).str.strip()
     df["nota_ziad"] = df["nota_ziad"].fillna("").astype(str).str.strip()
@@ -75,7 +193,7 @@ if "oficina_itens" not in st.session_state:
     st.session_state.oficina_itens = []
 
 if "lavanderia_manual_itens" not in st.session_state:
-    st.session_state.lavanderia_manual_itens = []  # lista de {nome, valor}
+    st.session_state.lavanderia_manual_itens = []
 
 if "adicionais_itens" not in st.session_state:
     st.session_state.adicionais_itens = [
@@ -109,8 +227,8 @@ imagem = st.file_uploader("Imagem da peça piloto", ["jpg", "jpeg", "png"])
 # 🧵 Tecido
 # -------------------------------
 st.subheader("🧵 Tecido")
-
 cT1, cT2, cT3 = st.columns([1.2, 1.2, 1.6])
+
 with cT1:
     tecido_nome = st.text_input("Nome do tecido (ex: Denim 12oz)")
     tecido_tipo = st.selectbox("Tipo do tecido", ["Jeans", "Sarja"])
@@ -125,10 +243,9 @@ with cT3:
 
 
 # -------------------------------
-# 💰 Custos base (SEM LINHA)
+# 💰 Custos base
 # -------------------------------
 st.subheader("💰 Custos base")
-
 cb1, cb2, cb3 = st.columns(3)
 with cb1:
     aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10)
@@ -139,12 +256,12 @@ with cb3:
 
 
 # -------------------------------
-# Função: Oficina por tabela (sem repetir)
+# Oficina por tabela (sem repetir)
 # -------------------------------
-def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefix: str):
+def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
     if df is None:
         st.warning(f"Tabela não encontrada: data/{prefix}.csv")
-        return 0.0, 0.0, 0.0
+        return 0.0
 
     itens = st.session_state[state_key]
     selecionados = {i["servico"] for i in itens}
@@ -159,12 +276,7 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
             key=f"{prefix}_select"
         )
     with colS2:
-        add = st.button(
-            "Adicionar",
-            use_container_width=True,
-            key=f"{prefix}_add_btn",
-            disabled=(escolhido == "(selecione)")
-        )
+        add = st.button("Adicionar", use_container_width=True, key=f"{prefix}_add_btn", disabled=(escolhido == "(selecione)"))
 
     if add and escolhido != "(selecione)":
         linha_df = df[df["servico"] == escolhido].iloc[0].to_dict()
@@ -180,12 +292,10 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
         st.session_state[state_key] = itens
         st.rerun()
 
+    total_real = 0.0
+
     if itens:
         st.markdown("### Serviços adicionados")
-
-        total_min = 0.0
-        total_max = 0.0
-        total_real = 0.0
 
         for idx, item in enumerate(itens):
             with st.container(border=True):
@@ -219,68 +329,37 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
                         st.session_state[state_key] = itens
                         st.rerun()
 
-            total_min += float(item["valor_min"])
-            total_max += float(item["valor_max"])
-            total_real += float(item["valor_real"])
+            total_real += float(itens[idx]["valor_real"])
 
-        st.markdown(f"### Totais — {titulo_total}")
-        t1, t2, t3 = st.columns(3)
-        t1.metric("Tabela (mín)", f"R$ {total_min:.2f}")
-        t2.metric("Tabela (máx)", f"R$ {total_max:.2f}")
-        t3.metric("Real", f"R$ {total_real:.2f}")
-
-        st.session_state[state_key] = itens
-        return total_min, total_max, total_real
-
-    st.info("Selecione os serviços realizados nesta peça.")
-    return 0.0, 0.0, 0.0
+    return float(total_real)
 
 
 # -------------------------------
 # 🏭 Oficina
 # -------------------------------
 st.subheader("🏭 Oficina")
-_, _, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
+total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "oficina")
+st.metric("Total oficina (R$)", f"R$ {total_oficina_real:.2f}")
 
 
 # -------------------------------
-# 🧼 Lavanderia (manual, em blocos)
+# 🧼 Lavanderia (manual)
 # -------------------------------
 st.subheader("🧼 Lavanderia (valores manuais)")
 
-col_lav1, col_lav2, col_lav3 = st.columns([2.2, 1.2, 1])
-
-with col_lav1:
-    lav_nome = st.text_input(
-        "Nome do serviço de lavanderia",
-        placeholder="Ex: Stone wash, Destroyed, Tingimento...",
-        key="lav_nome"
-    )
-
-with col_lav2:
-    lav_valor = st.number_input(
-        "Valor (R$)",
-        min_value=0.0,
-        value=0.0,
-        step=0.10,
-        key="lav_valor",
-        disabled=not lav_nome.strip()
-    )
-
-with col_lav3:
-    lav_add = st.button(
-        "Adicionar",
-        use_container_width=True,
-        key="lav_add",
-        disabled=not lav_nome.strip()
-    )
+col_l1, col_l2, col_l3 = st.columns([2.2, 1.2, 1])
+with col_l1:
+    lav_nome = st.text_input("Nome do serviço", placeholder="Ex: Stone wash, Destroyed...", key="lav_nome")
+with col_l2:
+    lav_valor = st.number_input("Valor (R$)", min_value=0.0, value=0.0, step=0.10, key="lav_valor", disabled=not lav_nome.strip())
+with col_l3:
+    lav_add = st.button("Adicionar", use_container_width=True, key="lav_add", disabled=not lav_nome.strip())
 
 nomes_lav = {i["nome"].strip().lower() for i in st.session_state.lavanderia_manual_itens}
-
 if lav_add:
     nome_limpo = lav_nome.strip()
     if nome_limpo.lower() in nomes_lav:
-        st.warning("Esse serviço de lavanderia já foi adicionado.")
+        st.warning("Esse serviço já foi adicionado.")
     else:
         st.session_state.lavanderia_manual_itens.append({"nome": nome_limpo, "valor": float(lav_valor)})
         st.rerun()
@@ -291,83 +370,46 @@ for idx, item in enumerate(st.session_state.lavanderia_manual_itens):
     with col:
         with st.container(border=True):
             st.write(f"**{item['nome']}**")
-            val = st.number_input(
-                "R$",
-                min_value=0.0,
-                value=float(item["valor"]),
-                step=0.10,
-                key=f"lav_item_{idx}",
-                label_visibility="collapsed",
-            )
+            val = st.number_input("R$", min_value=0.0, value=float(item["valor"]), step=0.10, key=f"lav_item_{idx}", label_visibility="collapsed")
             st.session_state.lavanderia_manual_itens[idx]["valor"] = float(val)
 
             if st.button("Remover", key=f"lav_rem_{idx}", use_container_width=True):
                 st.session_state.lavanderia_manual_itens.pop(idx)
                 st.rerun()
 
-total_lavanderia_real = float(sum(i["valor"] for i in st.session_state.lavanderia_manual_itens))
-st.metric("Total lavanderia (R$)", f"R$ {total_lavanderia_real:.2f}")
+total_lavanderia = float(sum(i["valor"] for i in st.session_state.lavanderia_manual_itens))
+st.metric("Total lavanderia (R$)", f"R$ {total_lavanderia:.2f}")
 
 
 # -------------------------------
-# ➕ Adicionais (dinâmicos em blocos)
+# ➕ Adicionais
 # -------------------------------
 st.subheader("➕ Adicionais (valores manuais)")
 
-col_add1, col_add2, col_add3 = st.columns([2.2, 1.2, 1])
-with col_add1:
-    novo_nome = st.text_input(
-        "Nome do adicional",
-        placeholder="Ex: Zíper, Etiqueta, Botão extra...",
-        key="add_nome"
-    )
-
-with col_add2:
-    novo_valor = st.number_input(
-        "Valor (R$)",
-        min_value=0.0,
-        value=0.0,
-        step=0.10,
-        key="add_valor",
-        disabled=(not (novo_nome or "").strip())
-    )
-
-with col_add3:
-    add_novo = st.button(
-        "Adicionar",
-        use_container_width=True,
-        key="add_btn",
-        disabled=(not (novo_nome or "").strip())
-    )
+col_a1, col_a2, col_a3 = st.columns([2.2, 1.2, 1])
+with col_a1:
+    novo_nome = st.text_input("Nome do adicional", placeholder="Ex: Zíper, Etiqueta...", key="add_nome")
+with col_a2:
+    novo_valor = st.number_input("Valor (R$)", min_value=0.0, value=0.0, step=0.10, key="add_valor", disabled=not novo_nome.strip())
+with col_a3:
+    add_novo = st.button("Adicionar", use_container_width=True, key="add_btn", disabled=not novo_nome.strip())
 
 nomes_existentes = {i["nome"].strip().lower() for i in st.session_state.adicionais_itens}
-
 if add_novo:
-    nome_limpo = (novo_nome or "").strip()
-    if not nome_limpo:
-        st.warning("Digite um nome para o adicional.")
-    elif nome_limpo.lower() in nomes_existentes:
-        st.warning("Esse adicional já existe. Ajuste o valor no bloco abaixo.")
+    nome_limpo = novo_nome.strip()
+    if nome_limpo.lower() in nomes_existentes:
+        st.warning("Esse adicional já existe.")
     else:
         st.session_state.adicionais_itens.append({"nome": nome_limpo, "valor": float(novo_valor)})
         st.rerun()
 
-st.markdown("### Itens")
 cols = st.columns(3)
-
 for idx, item in enumerate(st.session_state.adicionais_itens):
     col = cols[idx % 3]
     with col:
         with st.container(border=True):
             st.write(f"**{item['nome']}**")
-            val = st.number_input(
-                "R$",
-                min_value=0.0,
-                value=float(item["valor"]),
-                step=0.10,
-                key=f"ad_val_{idx}",
-                label_visibility="collapsed",
-            )
+            val = st.number_input("R$", min_value=0.0, value=float(item["valor"]), step=0.10, key=f"ad_val_{idx}", label_visibility="collapsed")
             st.session_state.adicionais_itens[idx]["valor"] = float(val)
 
             if idx >= 5:
@@ -376,149 +418,129 @@ for idx, item in enumerate(st.session_state.adicionais_itens):
                     st.rerun()
 
 total_adicionais = float(sum(i["valor"] for i in st.session_state.adicionais_itens))
-st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
-
-# para Excel
-adicionais = {i["nome"]: float(i["valor"]) for i in st.session_state.adicionais_itens if float(i["valor"]) > 0}
+st.metric("Total adicionais (R$)", f"R$ {total_adicionais:.2f}")
 
 
 # -------------------------------
-# 📌 RESUMO FINAL
+# 📌 Resumo + Total
 # -------------------------------
 st.divider()
 st.subheader("📌 Resumo final")
 
-total_base = float(aviamentos) + float(acabamento) + float(despesa_fixa)
-total_geral_preview = (
-    float(tecido_valor)
-    + total_base
-    + float(total_oficina_real)
-    + float(total_lavanderia_real)
-    + float(total_adicionais)
-)
+aviamento_total = float(aviamentos) + float(acabamento)  # simplifica (1 coluna no excel)
+custos_dict = {
+    "Tecido": float(tecido_valor),
+    "Oficina": float(total_oficina_real),
+    "Lavanderia": float(total_lavanderia),
+    "Aviamento": float(aviamento_total),
+    "Detalhes (adicionais)": float(total_adicionais),
+    "Despesa Fixa": float(despesa_fixa),
+}
+
+total_geral = float(sum(custos_dict.values()))
+_ = calcular_custo_total(custos_dict)
 
 with st.container(border=True):
     r1, r2, r3 = st.columns(3)
-    r1.metric("Tecido", f"R$ {tecido_valor:.2f}")
-    r2.metric("Custos base", f"R$ {total_base:.2f}")
-    r3.metric("Adicionais", f"R$ {total_adicionais:.2f}")
+    r1.metric("Tecido", f"R$ {custos_dict['Tecido']:.2f}")
+    r2.metric("Oficina", f"R$ {custos_dict['Oficina']:.2f}")
+    r3.metric("Lavanderia", f"R$ {custos_dict['Lavanderia']:.2f}")
 
-    r4, r5 = st.columns(2)
-    r4.metric("Oficina (real)", f"R$ {total_oficina_real:.2f}")
-    r5.metric("Lavanderia (real)", f"R$ {total_lavanderia_real:.2f}")
+    r4, r5, r6 = st.columns(3)
+    r4.metric("Aviamento", f"R$ {custos_dict['Aviamento']:.2f}")
+    r5.metric("Adicionais", f"R$ {custos_dict['Detalhes (adicionais)']:.2f}")
+    r6.metric("Despesa fixa", f"R$ {custos_dict['Despesa Fixa']:.2f}")
 
     st.divider()
-    st.metric("💰 TOTAL GERAL", f"R$ {total_geral_preview:.2f}")
+    st.metric("💰 TOTAL GERAL", f"R$ {total_geral:.2f}")
 
 
 # -------------------------------
-# ✅ Gerar custo + Excel (e salvar histórico)
+# ✅ Botões: Adicionar / Excel / QR
 # -------------------------------
 st.divider()
-gerar = st.button("✅ Gerar custo e Excel", type="primary", use_container_width=True)
+b1, b2, b3 = st.columns(3)
 
-if gerar:
-    custos = {
-        "Tecido": float(tecido_valor),
-        "Aviamentos": float(aviamentos),
-        "Acabamento": float(acabamento),
-        "Despesa fixa": float(despesa_fixa),
-        "Oficina (real)": float(total_oficina_real),
-        "Lavanderia (real)": float(total_lavanderia_real),
-        "Adicionais (total)": float(total_adicionais),
-    }
+with b1:
+    btn_add_hist = st.button("➕ Adicionar ao histórico", use_container_width=True)
 
-    total = float(total_geral_preview)
-    _ = calcular_custo_total(custos)
+with b2:
+    btn_excel = st.button("📥 Gerar Excel", type="primary", use_container_width=True)
 
-    st.success(f"💰 Custo total: R$ {total:.2f}")
+with b3:
+    btn_qr = st.button("🧾 Gerar QR (Ficha)", use_container_width=True)
 
-    # Lavanderia manual para Excel (como "servico")
-    lavanderia_itens_excel = [
-        {
-            "servico": i["nome"],
-            "valor_min": float(i["valor"]),
-            "valor_max": float(i["valor"]),
-            "nota_ziad": "",
-            "valor_real": float(i["valor"]),
-        }
-        for i in st.session_state.lavanderia_manual_itens
-    ]
+# Linha (padrão da sua planilha)
+linha_padrao = {
+    "Referência": ref.strip(),
+    "Descrição": desc.strip(),
+    "Tecido": round(custos_dict["Tecido"], 2),
+    "Oficina": round(custos_dict["Oficina"], 2),
+    "Lavanderia": round(custos_dict["Lavanderia"], 2),
+    "Aviamento": round(custos_dict["Aviamento"], 2),
+    "Detalhes (adicionais)": round(custos_dict["Detalhes (adicionais)"], 2),
+    "Despesa Fixa": round(custos_dict["Despesa Fixa"], 2),
+    "Total": round(total_geral, 2),
+}
 
-    dados_peca = {
-        "Referência": ref,
-        "Descrição": desc,
-        "Tipo de peça": tipo_peca,
-        "Tamanho piloto": tamanho,
-        "Cor/Lavagem": cor_lavagem,
-        "Tecido (nome)": tecido_nome,
-        "Tecido (tipo)": tecido_tipo,
-        "Preço tecido (R$/m)": float(tecido_preco_m),
-        "Consumo (m)": float(tecido_consumo_m),
-    }
-
-    excel_buffer = gerar_excel(
-        dados_peca=dados_peca,
-        custos=custos,
-        total=total,
-        oficina_itens=st.session_state.oficina_itens,
-        lavanderia_itens=lavanderia_itens_excel,
-        adicionais=adicionais,
-    )
-
-    st.download_button(
-        "📥 Baixar Excel",
-        data=excel_buffer.getvalue(),
-        file_name="custo_peca_piloto.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-
-    # -------------------------------
-    # 📚 Histórico (robusto)
-    # -------------------------------
-    os.makedirs("data", exist_ok=True)
-    hist_path = "data/historico.csv"
-
-    registro = {
-        "Referência": ref,
-        "Descrição": desc,
-        "Tipo de peça": tipo_peca,
-        "Total": round(float(total), 2),
-    }
-    df_novo = pd.DataFrame([registro])
-    colunas_esperadas = ["Referência", "Descrição", "Tipo de peça", "Total"]
-
-    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-        try:
-            df_antigo = pd.read_csv(hist_path)
-            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
-
-            if list(df_antigo.columns) != colunas_esperadas:
-                df_antigo = pd.DataFrame(columns=colunas_esperadas)
-
-            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-            df_final.to_csv(hist_path, index=False)
-
-        except Exception:
-            df_novo.to_csv(hist_path, index=False)
+if btn_add_hist:
+    if not linha_padrao["Referência"]:
+        st.error("Preencha a Referência antes de adicionar ao histórico.")
     else:
-        df_novo.to_csv(hist_path, index=False)
+        salvar_historico(linha_padrao)
+        st.success("✅ Adicionado ao histórico!")
+
+if btn_excel:
+    if not linha_padrao["Referência"]:
+        st.error("Preencha a Referência antes de gerar o Excel.")
+    else:
+        # também salva no histórico
+        salvar_historico(linha_padrao)
+
+        excel_buffer = gerar_excel_simples(linha_padrao)
+        st.success("✅ Excel pronto!")
+
+        st.download_button(
+            "📥 Baixar Excel",
+            data=excel_buffer.getvalue(),
+            file_name=f"custo_{linha_padrao['Referência']}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+if btn_qr:
+    app_url = get_app_url()
+    if not app_url:
+        st.error('Defina APP_URL nos Secrets (ex: "https://seuapp.streamlit.app").')
+    elif not linha_padrao["Referência"]:
+        st.error("Preencha a Referência antes de gerar o QR.")
+    else:
+        # Gera QR para ficha rápida
+        url = f"{app_url}/?view=ficha&ref={linha_padrao['Referência']}"
+        png = gerar_qr_png(url)
+
+        st.image(png, width=220)
+        st.download_button(
+            "⬇️ Baixar QR (PNG)",
+            data=png,
+            file_name=f"qr_{linha_padrao['Referência']}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+        st.caption("Link da ficha (para testar):")
+        st.code(url)
 
 
 # -------------------------------
-# 📚 Exibir histórico
+# 📚 Histórico (exibição)
 # -------------------------------
 st.divider()
 st.subheader("📚 Histórico de Peças")
 
 hist_path = "data/historico.csv"
-if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-    try:
-        df_hist = pd.read_csv(hist_path)
-        df_hist = df_hist.loc[:, ~df_hist.columns.astype(str).str.startswith("Unnamed")]
-        st.dataframe(df_hist, use_container_width=True)
-    except pd.errors.EmptyDataError:
-        st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
+df_hist = ler_historico(hist_path)
+
+if df_hist.empty:
+    st.info("Ainda não há histórico. Adicione uma peça ou gere o Excel para registrar.")
 else:
-    st.info("Ainda não há histórico. Gere o primeiro custo para registrar.")
+    st.dataframe(df_hist, use_container_width=True)
