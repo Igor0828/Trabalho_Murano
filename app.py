@@ -37,7 +37,7 @@ st.title("🧵 Sistema de Custo – Peça Piloto")
 
 
 # -------------------------------
-# 📌 Leitura de tabelas (Oficina / Lavanderia)
+# 📌 Leitura de tabela (Oficina)
 # -------------------------------
 @st.cache_data
 def carregar_tabela_csv(path_str: str):
@@ -47,7 +47,6 @@ def carregar_tabela_csv(path_str: str):
 
     df = pd.read_csv(path)
 
-    # Normaliza colunas esperadas
     if "servico" not in df.columns:
         df["servico"] = ""
     if "valor_min" not in df.columns:
@@ -62,14 +61,12 @@ def carregar_tabela_csv(path_str: str):
     df["valor_min"] = pd.to_numeric(df["valor_min"], errors="coerce").fillna(0.0)
     df["valor_max"] = pd.to_numeric(df["valor_max"], errors="coerce").fillna(0.0)
 
-    # Remove linhas vazias
     df = df[df["servico"].str.len() > 0].reset_index(drop=True)
-
     return df
 
 
 df_oficina = carregar_tabela_csv("data/oficina.csv")
-df_lavanderia = carregar_tabela_csv("data/lavanderia.csv")
+
 
 # -------------------------------
 # Estado da sessão
@@ -77,8 +74,8 @@ df_lavanderia = carregar_tabela_csv("data/lavanderia.csv")
 if "oficina_itens" not in st.session_state:
     st.session_state.oficina_itens = []
 
-if "lavanderia_itens" not in st.session_state:
-    st.session_state.lavanderia_itens = []
+if "lavanderia_manual_itens" not in st.session_state:
+    st.session_state.lavanderia_manual_itens = []  # lista de {nome, valor}
 
 if "adicionais_itens" not in st.session_state:
     st.session_state.adicionais_itens = [
@@ -142,7 +139,7 @@ with cb3:
 
 
 # -------------------------------
-# Função: UI somar serviços (sem repetir)
+# Função: Oficina por tabela (sem repetir)
 # -------------------------------
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefix: str):
     if df is None:
@@ -245,15 +242,75 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, titulo_total: str, prefi
 st.subheader("🏭 Oficina")
 _, _, total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "Oficina", "oficina")
 
+
 # -------------------------------
-# 🧼 Lavanderia
+# 🧼 Lavanderia (manual, em blocos)
 # -------------------------------
-st.subheader("🧼 Lavanderia")
-_, _, total_lavanderia_real = ui_somar_servicos(df_lavanderia, "lavanderia_itens", "Lavanderia", "lavanderia")
+st.subheader("🧼 Lavanderia (valores manuais)")
+
+col_lav1, col_lav2, col_lav3 = st.columns([2.2, 1.2, 1])
+
+with col_lav1:
+    lav_nome = st.text_input(
+        "Nome do serviço de lavanderia",
+        placeholder="Ex: Stone wash, Destroyed, Tingimento...",
+        key="lav_nome"
+    )
+
+with col_lav2:
+    lav_valor = st.number_input(
+        "Valor (R$)",
+        min_value=0.0,
+        value=0.0,
+        step=0.10,
+        key="lav_valor",
+        disabled=not lav_nome.strip()
+    )
+
+with col_lav3:
+    lav_add = st.button(
+        "Adicionar",
+        use_container_width=True,
+        key="lav_add",
+        disabled=not lav_nome.strip()
+    )
+
+nomes_lav = {i["nome"].strip().lower() for i in st.session_state.lavanderia_manual_itens}
+
+if lav_add:
+    nome_limpo = lav_nome.strip()
+    if nome_limpo.lower() in nomes_lav:
+        st.warning("Esse serviço de lavanderia já foi adicionado.")
+    else:
+        st.session_state.lavanderia_manual_itens.append({"nome": nome_limpo, "valor": float(lav_valor)})
+        st.rerun()
+
+cols_lav = st.columns(3)
+for idx, item in enumerate(st.session_state.lavanderia_manual_itens):
+    col = cols_lav[idx % 3]
+    with col:
+        with st.container(border=True):
+            st.write(f"**{item['nome']}**")
+            val = st.number_input(
+                "R$",
+                min_value=0.0,
+                value=float(item["valor"]),
+                step=0.10,
+                key=f"lav_item_{idx}",
+                label_visibility="collapsed",
+            )
+            st.session_state.lavanderia_manual_itens[idx]["valor"] = float(val)
+
+            if st.button("Remover", key=f"lav_rem_{idx}", use_container_width=True):
+                st.session_state.lavanderia_manual_itens.pop(idx)
+                st.rerun()
+
+total_lavanderia_real = float(sum(i["valor"] for i in st.session_state.lavanderia_manual_itens))
+st.metric("Total lavanderia (R$)", f"R$ {total_lavanderia_real:.2f}")
 
 
 # -------------------------------
-# ➕ Adicionais (dinâmicos em blocos, sem repetir)
+# ➕ Adicionais (dinâmicos em blocos)
 # -------------------------------
 st.subheader("➕ Adicionais (valores manuais)")
 
@@ -321,7 +378,7 @@ for idx, item in enumerate(st.session_state.adicionais_itens):
 total_adicionais = float(sum(i["valor"] for i in st.session_state.adicionais_itens))
 st.metric("Total de adicionais (R$)", f"R$ {total_adicionais:.2f}")
 
-# ✅ garante que 'adicionais' sempre exista (para Excel)
+# para Excel
 adicionais = {i["nome"]: float(i["valor"]) for i in st.session_state.adicionais_itens if float(i["valor"]) > 0}
 
 
@@ -355,7 +412,7 @@ with st.container(border=True):
 
 
 # -------------------------------
-# ✅ Gerar custo + Excel
+# ✅ Gerar custo + Excel (e salvar histórico)
 # -------------------------------
 st.divider()
 gerar = st.button("✅ Gerar custo e Excel", type="primary", use_container_width=True)
@@ -371,16 +428,22 @@ if gerar:
         "Adicionais (total)": float(total_adicionais),
     }
 
-    # total igual ao resumo final
     total = float(total_geral_preview)
-
-    # sanity check (opcional)
     _ = calcular_custo_total(custos)
 
     st.success(f"💰 Custo total: R$ {total:.2f}")
 
-    if imagem:
-        st.image(imagem, width=320)
+    # Lavanderia manual para Excel (como "servico")
+    lavanderia_itens_excel = [
+        {
+            "servico": i["nome"],
+            "valor_min": float(i["valor"]),
+            "valor_max": float(i["valor"]),
+            "nota_ziad": "",
+            "valor_real": float(i["valor"]),
+        }
+        for i in st.session_state.lavanderia_manual_itens
+    ]
 
     dados_peca = {
         "Referência": ref,
@@ -399,7 +462,7 @@ if gerar:
         custos=custos,
         total=total,
         oficina_itens=st.session_state.oficina_itens,
-        lavanderia_itens=st.session_state.lavanderia_itens,
+        lavanderia_itens=lavanderia_itens_excel,
         adicionais=adicionais,
     )
 
@@ -412,7 +475,7 @@ if gerar:
     )
 
     # -------------------------------
-    # 📚 Histórico (ROBUSTO) - DENTRO do if gerar
+    # 📚 Histórico (robusto)
     # -------------------------------
     os.makedirs("data", exist_ok=True)
     hist_path = "data/historico.csv"
@@ -429,11 +492,8 @@ if gerar:
     if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
         try:
             df_antigo = pd.read_csv(hist_path)
-
-            # remove colunas "Unnamed"
             df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
 
-            # se estrutura não bater, recria do zero (mantendo só o novo)
             if list(df_antigo.columns) != colunas_esperadas:
                 df_antigo = pd.DataFrame(columns=colunas_esperadas)
 
