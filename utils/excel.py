@@ -42,7 +42,7 @@ def gerar_excel(
             "valor_real": "Valor real",
         })
 
-    # Lavanderia
+    # Lavanderia (manual adaptada no app para esse formato)
     if lavanderia_itens is None:
         lavanderia_itens = []
     df_lav = pd.DataFrame(lavanderia_itens) if lavanderia_itens else pd.DataFrame(
