@@ -1,5 +1,5 @@
 txt
-qrcode
+qrcode[pil]
 streamlit
 pandas
 openpyxl
