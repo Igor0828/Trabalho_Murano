@@ -8,6 +8,9 @@ import qrcode
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel_simples, gerar_excel_multiplos
 
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "custo"
+
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
 
 
@@ -204,13 +207,19 @@ if "adicionais_itens" not in st.session_state:
 # -------------------------------
 # ✅ Menu lateral (responsivo)
 # -------------------------------
-st.sidebar.title("📌 Menu")
-pagina = st.sidebar.radio(
-    "Navegação",
-    ["💰 Custo", "🔎 Pesquisar"],
-    label_visibility="collapsed"
-)
+st.sidebar.markdown("## 📌 Menu")
 
+def nav_button(label, page_key):
+    ativo = st.session_state.pagina == page_key
+    style = "primary" if ativo else "secondary"
+    if st.sidebar.button(label, use_container_width=True, type=style):
+        st.session_state.pagina = page_key
+        st.rerun()
+
+nav_button("💰 Custo", "custo")
+nav_button("🔎 Pesquisar", "pesquisar")
+
+pagina = st.session_state.pagina
 
 # -------------------------------
 # 🧩 Página: Pesquisar
@@ -575,7 +584,7 @@ def render_custo():
 # -------------------------------
 # Render
 # -------------------------------
-if pagina == "💰 Custo":
+if pagina == "custo":
     render_custo()
 else:
     render_pesquisar()
