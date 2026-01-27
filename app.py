@@ -80,7 +80,7 @@ def salvar_historico(linha: dict):
             df_antigo = pd.read_csv(hist_path)
             df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
 
-            # se estrutura estiver diferente, recria mantendo o antigo só nas colunas esperadas (se existirem)
+            # mantém estrutura estável
             if list(df_antigo.columns) != colunas:
                 df_antigo = df_antigo.reindex(columns=colunas)
 
@@ -113,7 +113,7 @@ if view == "ficha" and ref_qr:
     df = ler_historico(hist_path)
 
     if df.empty:
-        st.error("Histórico vazio. Gere ou adicione uma peça primeiro.")
+        st.error("Histórico vazio. Adicione uma peça primeiro.")
         st.stop()
 
     linha = df[df["Referência"].astype(str) == str(ref_qr)]
@@ -132,8 +132,9 @@ if view == "ficha" and ref_qr:
 
     st.divider()
     st.subheader("📌 Resumo de custos")
+
     r1, r2, r3 = st.columns(3)
-    r1.metric("Tecido", f"R$ {float(item.get('Tecido',0)):.2f}")
+    r1.metric("Custo do tecido", f"R$ {float(item.get('Custo do tecido',0)):.2f}")
     r2.metric("Oficina", f"R$ {float(item.get('Oficina',0)):.2f}")
     r3.metric("Lavanderia", f"R$ {float(item.get('Lavanderia',0)):.2f}")
 
@@ -208,7 +209,7 @@ if "adicionais_itens" not in st.session_state:
 
 
 # -------------------------------
-# 🧾 Identificação
+# 🧾 Identificação da peça
 # -------------------------------
 st.subheader("🧾 Identificação da peça")
 
@@ -216,27 +217,24 @@ cA, cB = st.columns(2)
 with cA:
     ref = st.text_input("Referência")
     desc = st.text_input("Descrição")
-    tamanho = st.text_input("Tamanho piloto")
 
 with cB:
-    tipo_peca = st.text_input("Tipo de peça (ex: Calça, Bermuda, Jaqueta)")
-    cor_lavagem = st.text_input("Cor / Lavagem")
-
-imagem = st.file_uploader("Imagem da peça piloto", ["jpg", "jpeg", "png"])
+    st.caption("Campos mínimos para histórico, Excel e QR.")
+    st.write("")
 
 
 # -------------------------------
 # 🧵 Tecido
 # -------------------------------
 st.subheader("🧵 Tecido")
-cT1, cT2, cT3 = st.columns([1.2, 1.2, 1.6])
 
+cT1, cT2, cT3 = st.columns([1.2, 1.2, 1.6])
 with cT1:
-    tecido_nome = st.text_input("Nome do tecido (ex: Denim 12oz)")
+    tecido_nome = st.text_input("Nome do tecido (opcional)")
     tecido_tipo = st.selectbox("Tipo do tecido", ["Jeans", "Sarja"])
 
 with cT2:
-    tecido_preco_m = st.number_input("Preço do tecido (R$/m)", min_value=0.0, value=0.0, step=0.10)
+    tecido_preco_m = st.number_input("Tecido (R$/m)", min_value=0.0, value=0.0, step=0.10)
     tecido_consumo_m = st.number_input("Consumo (m)", min_value=0.0, value=0.0, step=0.01)
 
 with cT3:
@@ -248,6 +246,7 @@ with cT3:
 # 💰 Custos base
 # -------------------------------
 st.subheader("💰 Custos base")
+
 cb1, cb2, cb3 = st.columns(3)
 with cb1:
     aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10)
@@ -258,7 +257,7 @@ with cb3:
 
 
 # -------------------------------
-# Oficina por tabela (sem repetir)
+# 🏭 Oficina (tabela sem repetir)
 # -------------------------------
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
     if df is None:
@@ -298,7 +297,6 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
 
     if itens:
         st.markdown("### Serviços adicionados")
-
         for idx, item in enumerate(itens):
             with st.container(border=True):
                 c1, c2, c3 = st.columns([3, 2, 1])
@@ -336,9 +334,6 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
     return float(total_real)
 
 
-# -------------------------------
-# 🏭 Oficina
-# -------------------------------
 st.subheader("🏭 Oficina")
 total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "oficina")
 st.metric("Total oficina (R$)", f"R$ {total_oficina_real:.2f}")
@@ -429,9 +424,9 @@ st.metric("Total adicionais (R$)", f"R$ {total_adicionais:.2f}")
 st.divider()
 st.subheader("📌 Resumo final")
 
-aviamento_total = float(aviamentos) + float(acabamento)  # simplifica (1 coluna no excel)
+aviamento_total = float(aviamentos) + float(acabamento)  # coluna única
 custos_dict = {
-    "Tecido": float(tecido_valor),
+    "Custo do tecido": float(tecido_valor),
     "Oficina": float(total_oficina_real),
     "Lavanderia": float(total_lavanderia),
     "Aviamento": float(aviamento_total),
@@ -444,7 +439,7 @@ _ = calcular_custo_total(custos_dict)
 
 with st.container(border=True):
     r1, r2, r3 = st.columns(3)
-    r1.metric("Custo do Tecido", f"R$ {custos_dict['Tecido']:.2f}")
+    r1.metric("Custo do tecido", f"R$ {custos_dict['Custo do tecido']:.2f}")
     r2.metric("Oficina", f"R$ {custos_dict['Oficina']:.2f}")
     r3.metric("Lavanderia", f"R$ {custos_dict['Lavanderia']:.2f}")
 
@@ -472,7 +467,6 @@ with b2:
 with b3:
     btn_qr = st.button("🧾 Gerar QR (Ficha)", use_container_width=True)
 
-# Linha (padrão da sua planilha)
 linha_padrao = {
     "Referência": ref.strip(),
     "Descrição": desc.strip(),
@@ -500,7 +494,6 @@ if btn_excel:
     else:
         excel_buffer = gerar_excel_simples(linha_padrao)
         st.success("✅ Excel pronto!")
-
         st.download_button(
             "📥 Baixar Excel",
             data=excel_buffer.getvalue(),
@@ -516,10 +509,8 @@ if btn_qr:
     elif not linha_padrao["Referência"]:
         st.error("Preencha a Referência antes de gerar o QR.")
     else:
-        # Gera QR para ficha rápida
         url = f"{app_url}/?view=ficha&ref={linha_padrao['Referência']}"
         png = gerar_qr_png(url)
-
         st.image(png, width=220)
         st.download_button(
             "⬇️ Baixar QR (PNG)",
@@ -542,6 +533,6 @@ hist_path = "data/historico.csv"
 df_hist = ler_historico(hist_path)
 
 if df_hist.empty:
-    st.info("Ainda não há histórico. Adicione uma peça ou gere o Excel para registrar.")
+    st.info("Ainda não há histórico. Adicione uma peça primeiro.")
 else:
     st.dataframe(df_hist, use_container_width=True)
