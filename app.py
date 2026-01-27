@@ -219,7 +219,7 @@ with cA:
     desc = st.text_input("Descrição")
 
 with cB:
-    st.caption("Campos mínimos para histórico, Excel e QR.")
+    st.caption("")
     st.write("")
 
 
