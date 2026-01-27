@@ -444,7 +444,7 @@ _ = calcular_custo_total(custos_dict)
 
 with st.container(border=True):
     r1, r2, r3 = st.columns(3)
-    r1.metric("Tecido", f"R$ {custos_dict['Tecido']:.2f}")
+    r1.metric("Custo do Tecido", f"R$ {custos_dict['Tecido']:.2f}")
     r2.metric("Oficina", f"R$ {custos_dict['Oficina']:.2f}")
     r3.metric("Lavanderia", f"R$ {custos_dict['Lavanderia']:.2f}")
 
