@@ -4,15 +4,19 @@ from io import BytesIO
 
 def gerar_excel_simples(linha: dict) -> BytesIO:
     """
-    Gera um Excel simples com UMA aba e UMA linha no formato:
-    Referência | Descrição | Tecido | Oficina | Lavanderia | Aviamento | Detalhes (adicionais) | Despesa Fixa | Total
+    Excel simples com UMA aba e UMA linha.
+    Colunas:
+    Referência | Descrição | Tecido (R$/m) | Consumo (m) | Custo do tecido | Oficina | Lavanderia |
+    Aviamento | Detalhes (adicionais) | Despesa Fixa | Total
     """
     buffer = BytesIO()
 
     colunas = [
         "Referência",
         "Descrição",
-        "Tecido",
+        "Tecido (R$/m)",
+        "Consumo (m)",
+        "Custo do tecido",
         "Oficina",
         "Lavanderia",
         "Aviamento",
