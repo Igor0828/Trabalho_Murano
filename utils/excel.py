@@ -28,11 +28,11 @@ def gerar_excel_simples(linha: dict) -> BytesIO:
 
 def gerar_excel_multiplos(df: pd.DataFrame) -> BytesIO:
     """
-    Recebe um DataFrame (várias linhas) e exporta no mesmo formato simples.
+    Exporta várias linhas do histórico para Excel.
     """
     buffer = BytesIO()
 
-    # garante colunas e ordem
+    # garante ordem e colunas
     df_out = df.reindex(columns=COLUNAS_PADRAO)
 
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
