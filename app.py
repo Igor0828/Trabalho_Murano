@@ -62,7 +62,9 @@ def salvar_historico(linha: dict):
     colunas = [
         "Referência",
         "Descrição",
-        "Tecido",
+        "Tecido (R$/m)",
+        "Consumo (m)",
+        "Custo do tecido",
         "Oficina",
         "Lavanderia",
         "Aviamento",
@@ -474,13 +476,15 @@ with b3:
 linha_padrao = {
     "Referência": ref.strip(),
     "Descrição": desc.strip(),
-    "Tecido": round(custos_dict["Tecido"], 2),
-    "Oficina": round(custos_dict["Oficina"], 2),
-    "Lavanderia": round(custos_dict["Lavanderia"], 2),
-    "Aviamento": round(custos_dict["Aviamento"], 2),
-    "Detalhes (adicionais)": round(custos_dict["Detalhes (adicionais)"], 2),
-    "Despesa Fixa": round(custos_dict["Despesa Fixa"], 2),
-    "Total": round(total_geral, 2),
+    "Tecido (R$/m)": round(float(tecido_preco_m), 2),
+    "Consumo (m)": round(float(tecido_consumo_m), 3),
+    "Custo do tecido": round(float(tecido_valor), 2),
+    "Oficina": round(float(total_oficina_real), 2),
+    "Lavanderia": round(float(total_lavanderia), 2),
+    "Aviamento": round(float(aviamentos + acabamento), 2),
+    "Detalhes (adicionais)": round(float(total_adicionais), 2),
+    "Despesa Fixa": round(float(despesa_fixa), 2),
+    "Total": round(float(total_geral), 2),
 }
 
 if btn_add_hist:
