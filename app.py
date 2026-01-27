@@ -393,9 +393,9 @@ def render_custo():
     st.subheader("💰 Custos base")
     cb1, cb2, cb3 = st.columns(3)
     with cb1:
-        aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10, key="aviamentos")
+        aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.00, step=0.10, key="aviamentos")
     with cb2:
-        acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=0.00, step=0.10, key="acabamento")
+        acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=1.70, step=0.10, key="acabamento")
     with cb3:
         despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10, key="despesa_fixa")
 
