@@ -80,7 +80,6 @@ def salvar_historico(linha: dict):
             df_antigo = pd.read_csv(hist_path)
             df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
 
-            # mantém estrutura estável
             if list(df_antigo.columns) != colunas:
                 df_antigo = df_antigo.reindex(columns=colunas)
 
@@ -209,17 +208,16 @@ if "adicionais_itens" not in st.session_state:
 
 
 # -------------------------------
-# 🧾 Identificação da peça
+# 🧾 Identificação da peça (lado a lado)
 # -------------------------------
 st.subheader("🧾 Identificação da peça")
 
-col1, col2 = st.columns(2)
-
+col1, col2 = st.columns([1, 2])
 with col1:
     ref = st.text_input("Referência")
-
 with col2:
     desc = st.text_input("Descrição")
+
 
 # -------------------------------
 # 🧵 Tecido
@@ -242,6 +240,8 @@ with cT3:
 
 # -------------------------------
 # 💰 Custos base
+# - Aviamento = somente aviamentos
+# - Acabamento entra em Despesa Fixa (somado)
 # -------------------------------
 st.subheader("💰 Custos base")
 
@@ -249,9 +249,11 @@ cb1, cb2, cb3 = st.columns(3)
 with cb1:
     aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.80, step=0.10)
 with cb2:
-    acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=6.50, step=0.10)
+    acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=0.00, step=0.10)
 with cb3:
     despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10)
+
+despesa_fixa_total = float(despesa_fixa) + float(acabamento)
 
 
 # -------------------------------
@@ -422,14 +424,13 @@ st.metric("Total adicionais (R$)", f"R$ {total_adicionais:.2f}")
 st.divider()
 st.subheader("📌 Resumo final")
 
-aviamento_total = float(aviamentos) + float(acabamento)  # coluna única
 custos_dict = {
     "Custo do tecido": float(tecido_valor),
     "Oficina": float(total_oficina_real),
     "Lavanderia": float(total_lavanderia),
-    "Aviamento": float(aviamento_total),
+    "Aviamento": float(aviamentos),
     "Detalhes (adicionais)": float(total_adicionais),
-    "Despesa Fixa": float(despesa_fixa),
+    "Despesa Fixa": float(despesa_fixa_total),
 }
 
 total_geral = float(sum(custos_dict.values()))
@@ -473,9 +474,9 @@ linha_padrao = {
     "Custo do tecido": round(float(tecido_valor), 2),
     "Oficina": round(float(total_oficina_real), 2),
     "Lavanderia": round(float(total_lavanderia), 2),
-    "Aviamento": round(float(aviamentos + acabamento), 2),
+    "Aviamento": round(float(aviamentos), 2),
     "Detalhes (adicionais)": round(float(total_adicionais), 2),
-    "Despesa Fixa": round(float(despesa_fixa), 2),
+    "Despesa Fixa": round(float(despesa_fixa_total), 2),
     "Total": round(float(total_geral), 2),
 }
 
