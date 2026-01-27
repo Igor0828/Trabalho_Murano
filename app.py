@@ -213,15 +213,13 @@ if "adicionais_itens" not in st.session_state:
 # -------------------------------
 st.subheader("🧾 Identificação da peça")
 
-cA, cB = st.columns(2)
-with cA:
+col1, col2 = st.columns(2)
+
+with col1:
     ref = st.text_input("Referência")
+
+with col2:
     desc = st.text_input("Descrição")
-
-with cB:
-    st.caption("")
-    st.write("")
-
 
 # -------------------------------
 # 🧵 Tecido
