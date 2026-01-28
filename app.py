@@ -8,9 +8,6 @@ import qrcode
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel_simples, gerar_excel_multiplos
 
-if "pagina" not in st.session_state:
-    st.session_state.pagina = "custo"
-
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
 
 
@@ -123,11 +120,11 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada no histórico.")
         st.stop()
 
-    item = linha.iloc[-1]
+    item = linha.iloc[-1].to_dict()
 
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Referência", str(item["Referência"]))
+        st.metric("Referência", str(item.get("Referência", "")))
         st.write(f"**Descrição:** {item.get('Descrição','')}")
     with c2:
         st.metric("Total", f"R$ {float(item.get('Total',0)):.2f}")
@@ -147,7 +144,7 @@ if view == "ficha" and ref_qr:
 
     st.divider()
     st.subheader("📥 Excel simples (desta ficha)")
-    excel_buffer = gerar_excel_simples(item.to_dict())
+    excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
         data=excel_buffer.getvalue(),
@@ -188,6 +185,9 @@ df_oficina = carregar_tabela_csv("data/oficina.csv")
 # -------------------------------
 # Estado da sessão
 # -------------------------------
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "custo"
+
 if "oficina_itens" not in st.session_state:
     st.session_state.oficina_itens = []
 
@@ -205,7 +205,7 @@ if "adicionais_itens" not in st.session_state:
 
 
 # -------------------------------
-# ✅ Menu lateral (responsivo)
+# ✅ Menu lateral (botões sem bolinhas)
 # -------------------------------
 st.sidebar.markdown("## 📌 Menu")
 
@@ -219,85 +219,12 @@ def nav_button(label, page_key):
 nav_button("💰 Custo", "custo")
 nav_button("🔎 Pesquisar", "pesquisar")
 
-pagina = st.session_state.pagina
-
-# -------------------------------
-# 🧩 Página: Pesquisar
-# -------------------------------
-def render_pesquisar():
-    st.title("🔎 Pesquisar no Histórico")
-
-    hist_path = "data/historico.csv"
-    df_hist = ler_historico(hist_path)
-
-    if df_hist.empty:
-        st.info("Ainda não há histórico. Adicione uma peça na aba de Custo.")
-        return
-
-    q = st.text_input(
-        "Pesquisar por Referência ou Descrição",
-        placeholder="Ex: 2501 ou 'calça reta'"
-    ).strip().lower()
-
-    df_view = df_hist.copy()
-
-    if q:
-        df_view = df_view[
-            df_view["Referência"].astype(str).str.lower().str.contains(q, na=False)
-            | df_view["Descrição"].astype(str).str.lower().str.contains(q, na=False)
-        ].copy()
-
-    # Ordena por último adicionado (se não tiver coluna data, mantemos ordem do CSV)
-    df_view = df_view.reset_index(drop=True)
-
-    st.caption(f"Resultados: {len(df_view)}")
-
-    if df_view.empty:
-        st.warning("Nenhum resultado encontrado.")
-        return
-
-    # Checkbox selecionável via Data Editor
-    df_sel = df_view.copy()
-    df_sel.insert(0, "Selecionar", False)
-
-    st.markdown("### ✅ Selecione linhas para exportar")
-    editado = st.data_editor(
-        df_sel,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Selecionar": st.column_config.CheckboxColumn(required=False),
-        },
-        disabled=[c for c in df_sel.columns if c != "Selecionar"],
-        key="editor_hist"
-    )
-
-    selecionadas = editado[editado["Selecionar"] == True].drop(columns=["Selecionar"], errors="ignore")
-
-    st.markdown("### 📥 Exportar Excel")
-    marcar_tudo = st.checkbox("Exportar tudo que está filtrado (ignorar seleção)", value=False)
-
-    if marcar_tudo:
-        df_export = df_view
-    else:
-        df_export = selecionadas
-
-    if df_export is None or df_export.empty:
-        st.info("Selecione pelo menos 1 linha (ou marque exportar tudo).")
-        return
-
-    excel_buffer = gerar_excel_multiplos(df_export)
-    st.download_button(
-        f"📥 Baixar Excel ({len(df_export)} linhas)",
-        data=excel_buffer.getvalue(),
-        file_name="historico_filtrado.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
+st.sidebar.divider()
+st.sidebar.caption("Sistema interno • Peça piloto")
 
 
 # -------------------------------
-# 🧩 Página: Custo (seu app atual)
+# Helpers UI
 # -------------------------------
 def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
     if df is None:
@@ -374,10 +301,82 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
     return float(total_real)
 
 
+# -------------------------------
+# Página: Pesquisar
+# -------------------------------
+def render_pesquisar():
+    st.title("🔎 Pesquisar no Histórico")
+
+    hist_path = "data/historico.csv"
+    df_hist = ler_historico(hist_path)
+
+    if df_hist.empty:
+        st.info("Ainda não há histórico. Adicione uma peça na aba de Custo.")
+        return
+
+    q = st.text_input(
+        "Pesquisar por Referência ou Descrição",
+        placeholder="Ex: 2501 ou 'calça reta'"
+    ).strip().lower()
+
+    df_view = df_hist.copy()
+
+    if q:
+        df_view = df_view[
+            df_view["Referência"].astype(str).str.lower().str.contains(q, na=False)
+            | df_view["Descrição"].astype(str).str.lower().str.contains(q, na=False)
+        ].copy()
+
+    df_view = df_view.reset_index(drop=True)
+
+    st.caption(f"Resultados: {len(df_view)}")
+
+    if df_view.empty:
+        st.warning("Nenhum resultado encontrado.")
+        return
+
+    df_sel = df_view.copy()
+    df_sel.insert(0, "Selecionar", False)
+
+    st.markdown("### ✅ Selecione linhas para exportar")
+    editado = st.data_editor(
+        df_sel,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Selecionar": st.column_config.CheckboxColumn(required=False),
+        },
+        disabled=[c for c in df_sel.columns if c != "Selecionar"],
+        key="editor_hist"
+    )
+
+    selecionadas = editado[editado["Selecionar"] == True].drop(columns=["Selecionar"], errors="ignore")
+
+    st.markdown("### 📥 Exportar Excel")
+    exportar_tudo = st.checkbox("Exportar tudo que está filtrado (ignorar seleção)", value=False)
+
+    df_export = df_view if exportar_tudo else selecionadas
+
+    if df_export.empty:
+        st.info("Selecione pelo menos 1 linha (ou marque exportar tudo).")
+        return
+
+    excel_buffer = gerar_excel_multiplos(df_export)
+    st.download_button(
+        f"📥 Baixar Excel ({len(df_export)} linhas)",
+        data=excel_buffer.getvalue(),
+        file_name="historico_filtrado.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+
+# -------------------------------
+# Página: Custo
+# -------------------------------
 def render_custo():
     st.title("💰 Custo – Peça Piloto")
 
-    # Identificação (lado a lado)
     st.subheader("🧾 Identificação da peça")
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -385,7 +384,6 @@ def render_custo():
     with col2:
         desc = st.text_input("Descrição", key="desc")
 
-    # Tecido
     st.subheader("🧵 Tecido")
     cT1, cT2, cT3 = st.columns([1.2, 1.2, 1.6])
     with cT1:
@@ -398,7 +396,6 @@ def render_custo():
         tecido_valor = float(tecido_preco_m) * float(tecido_consumo_m)
         st.metric("Custo do tecido (R$)", f"R$ {tecido_valor:.2f}")
 
-    # Custos base (acabamento dentro de despesa fixa)
     st.subheader("💰 Custos base")
     cb1, cb2, cb3 = st.columns(3)
     with cb1:
@@ -410,12 +407,10 @@ def render_custo():
 
     despesa_fixa_total = float(despesa_fixa) + float(acabamento)
 
-    # Oficina
     st.subheader("🏭 Oficina")
     total_oficina_real = ui_somar_servicos(df_oficina, "oficina_itens", "oficina")
     st.metric("Total oficina (R$)", f"R$ {total_oficina_real:.2f}")
 
-    # Lavanderia manual
     st.subheader("🧼 Lavanderia (valores manuais)")
     col_l1, col_l2, col_l3 = st.columns([2.2, 1.2, 1])
     with col_l1:
@@ -450,7 +445,6 @@ def render_custo():
     total_lavanderia = float(sum(i["valor"] for i in st.session_state.lavanderia_manual_itens))
     st.metric("Total lavanderia (R$)", f"R$ {total_lavanderia:.2f}")
 
-    # Adicionais
     st.subheader("➕ Adicionais (valores manuais)")
     col_a1, col_a2, col_a3 = st.columns([2.2, 1.2, 1])
     with col_a1:
@@ -486,7 +480,6 @@ def render_custo():
     total_adicionais = float(sum(i["valor"] for i in st.session_state.adicionais_itens))
     st.metric("Total adicionais (R$)", f"R$ {total_adicionais:.2f}")
 
-    # Resumo
     st.divider()
     st.subheader("📌 Resumo final")
 
@@ -498,6 +491,7 @@ def render_custo():
         "Detalhes (adicionais)": float(total_adicionais),
         "Despesa Fixa": float(despesa_fixa_total),
     }
+
     total_geral = float(sum(custos_dict.values()))
     _ = calcular_custo_total(custos_dict)
 
@@ -515,14 +509,13 @@ def render_custo():
         st.divider()
         st.metric("💰 TOTAL GERAL", f"R$ {total_geral:.2f}")
 
-    # Botões
     st.divider()
-    b1, b2, b3 = st.columns(3)
+
+    # ✅ Sem botão de Excel aqui
+    b1, b2 = st.columns(2)
     with b1:
-        btn_add_hist = st.button("➕ Adicionar ao histórico", use_container_width=True)
+        btn_add_hist = st.button("➕ Adicionar ao histórico", type="primary", use_container_width=True)
     with b2:
-        btn_excel = st.button("📥 Gerar Excel", type="primary", use_container_width=True)
-    with b3:
         btn_qr = st.button("🧾 Gerar QR (Ficha)", use_container_width=True)
 
     linha_padrao = {
@@ -546,20 +539,6 @@ def render_custo():
             salvar_historico(linha_padrao)
             st.success("✅ Adicionado ao histórico!")
 
-    if btn_excel:
-        if not linha_padrao["Referência"]:
-            st.error("Preencha a Referência antes de gerar o Excel.")
-        else:
-            excel_buffer = gerar_excel_simples(linha_padrao)
-            st.success("✅ Excel pronto!")
-            st.download_button(
-                "📥 Baixar Excel",
-                data=excel_buffer.getvalue(),
-                file_name=f"custo_{linha_padrao['Referência']}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-
     if btn_qr:
         app_url = get_app_url()
         if not app_url:
@@ -577,14 +556,35 @@ def render_custo():
                 mime="image/png",
                 use_container_width=True
             )
-            st.caption("Link da ficha (para testar):")
-            st.code(url)
+
+    # ✅ Mini histórico das últimas peças
+    st.divider()
+    st.subheader("🕘 Últimas peças adicionadas")
+
+    df_hist = ler_historico("data/historico.csv")
+    if df_hist.empty:
+        st.info("Ainda não há histórico.")
+    else:
+        ultimas = df_hist.tail(8).copy()
+        ultimas = ultimas[["Referência", "Descrição", "Total"]]
+        ultimas["Total"] = pd.to_numeric(ultimas["Total"], errors="coerce").fillna(0.0)
+
+        st.dataframe(
+            ultimas.iloc[::-1],
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ✅ Botão para ir pra pesquisa/exportação
+    if st.button("🔎 Abrir Pesquisa / Exportar Excel", use_container_width=True):
+        st.session_state.pagina = "pesquisar"
+        st.rerun()
 
 
 # -------------------------------
 # Render
 # -------------------------------
-if pagina == "custo":
+if st.session_state.pagina == "custo":
     render_custo()
 else:
     render_pesquisar()
