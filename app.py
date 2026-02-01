@@ -7,6 +7,7 @@ import qrcode
 
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel_simples, gerar_excel_multiplos
+from utils.supabase_db import ler_historico, salvar_historico  # ✅ SUPABASE
 
 st.set_page_config(page_title="Custo Peça Piloto", layout="centered")
 
@@ -46,51 +47,6 @@ def gerar_qr_png(url: str) -> bytes:
     return buf.getvalue()
 
 
-def ler_historico(hist_path: str) -> pd.DataFrame:
-    if not os.path.exists(hist_path) or os.path.getsize(hist_path) == 0:
-        return pd.DataFrame()
-
-    df = pd.read_csv(hist_path)
-    df = df.loc[:, ~df.columns.astype(str).str.startswith("Unnamed")]
-    return df
-
-
-def salvar_historico(linha: dict):
-    os.makedirs("data", exist_ok=True)
-    hist_path = "data/historico.csv"
-
-    colunas = [
-        "Referência",
-        "Descrição",
-        "Tecido (R$/m)",
-        "Consumo (m)",
-        "Custo do tecido",
-        "Oficina",
-        "Lavanderia",
-        "Aviamento",
-        "Detalhes (adicionais)",
-        "Despesa Fixa",
-        "Total",
-    ]
-
-    df_novo = pd.DataFrame([linha], columns=colunas)
-
-    if os.path.exists(hist_path) and os.path.getsize(hist_path) > 0:
-        try:
-            df_antigo = pd.read_csv(hist_path)
-            df_antigo = df_antigo.loc[:, ~df_antigo.columns.astype(str).str.startswith("Unnamed")]
-
-            if list(df_antigo.columns) != colunas:
-                df_antigo = df_antigo.reindex(columns=colunas)
-
-            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-            df_final.to_csv(hist_path, index=False)
-        except Exception:
-            df_novo.to_csv(hist_path, index=False)
-    else:
-        df_novo.to_csv(hist_path, index=False)
-
-
 # -------------------------------
 # ✅ Login
 # -------------------------------
@@ -108,8 +64,7 @@ ref_qr = params.get("ref", "")
 if view == "ficha" and ref_qr:
     st.title("🧾 Ficha Técnica (rápida)")
 
-    hist_path = "data/historico.csv"
-    df = ler_historico(hist_path)
+    df = ler_historico()
 
     if df.empty:
         st.error("Histórico vazio. Adicione uma peça primeiro.")
@@ -120,7 +75,7 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada no histórico.")
         st.stop()
 
-    item = linha.iloc[-1].to_dict()
+    item = linha.iloc[0].to_dict()  # como vem mais recente primeiro, pega a primeira
 
     c1, c2 = st.columns(2)
     with c1:
@@ -209,12 +164,14 @@ if "adicionais_itens" not in st.session_state:
 # -------------------------------
 st.sidebar.markdown("## 📌 Menu")
 
+
 def nav_button(label, page_key):
     ativo = st.session_state.pagina == page_key
     style = "primary" if ativo else "secondary"
     if st.sidebar.button(label, use_container_width=True, type=style):
         st.session_state.pagina = page_key
         st.rerun()
+
 
 nav_button("💰 Custo", "custo")
 nav_button("🔎 Pesquisar", "pesquisar")
@@ -307,8 +264,7 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
 def render_pesquisar():
     st.title("🔎 Pesquisar no Histórico")
 
-    hist_path = "data/historico.csv"
-    df_hist = ler_historico(hist_path)
+    df_hist = ler_historico()
 
     if df_hist.empty:
         st.info("Ainda não há histórico. Adicione uma peça na aba de Custo.")
@@ -511,7 +467,6 @@ def render_custo():
 
     st.divider()
 
-    # ✅ Sem botão de Excel aqui
     b1, b2 = st.columns(2)
     with b1:
         btn_add_hist = st.button("➕ Adicionar ao histórico", type="primary", use_container_width=True)
@@ -536,8 +491,11 @@ def render_custo():
         if not linha_padrao["Referência"]:
             st.error("Preencha a Referência antes de adicionar ao histórico.")
         else:
-            salvar_historico(linha_padrao)
-            st.success("✅ Adicionado ao histórico!")
+            try:
+                salvar_historico(linha_padrao)
+                st.success("✅ Adicionado ao histórico (Supabase)!")
+            except Exception as e:
+                st.error(f"Erro ao salvar no Supabase: {e}")
 
     if btn_qr:
         app_url = get_app_url()
@@ -557,25 +515,23 @@ def render_custo():
                 use_container_width=True
             )
 
-    # ✅ Mini histórico das últimas peças
     st.divider()
     st.subheader("🕘 Últimas peças adicionadas")
 
-    df_hist = ler_historico("data/historico.csv")
+    df_hist = ler_historico()
     if df_hist.empty:
         st.info("Ainda não há histórico.")
     else:
-        ultimas = df_hist.tail(8).copy()
+        ultimas = df_hist.head(8).copy()  # já vem mais recentes primeiro
         ultimas = ultimas[["Referência", "Descrição", "Total"]]
         ultimas["Total"] = pd.to_numeric(ultimas["Total"], errors="coerce").fillna(0.0)
 
         st.dataframe(
-            ultimas.iloc[::-1],
+            ultimas,
             use_container_width=True,
             hide_index=True
         )
 
-    # ✅ Botão para ir pra pesquisa/exportação
     if st.button("🔎 Abrir Pesquisa / Exportar Excel", use_container_width=True):
         st.session_state.pagina = "pesquisar"
         st.rerun()
