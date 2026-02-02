@@ -62,7 +62,7 @@ view = params.get("view", "")
 ref_qr = params.get("ref", "")
 
 if view == "ficha" and ref_qr:
-    st.title("🧾 Ficha Técnica (rápida)")
+    st.title("🧾 Ficha Técnica (QR)")
 
     df = ler_historico()
 
@@ -75,29 +75,45 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada no histórico.")
         st.stop()
 
-    item = linha.iloc[0].to_dict()  # como vem mais recente primeiro, pega a primeira
+    # como vem mais recente primeiro, pega a primeira
+    item = linha.iloc[0].to_dict()
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Referência", str(item.get("Referência", "")))
-        st.write(f"**Descrição:** {item.get('Descrição','')}")
-    with c2:
-        st.metric("Total", f"R$ {float(item.get('Total',0)):.2f}")
-
-    st.divider()
-    st.subheader("📌 Resumo de custos")
-
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Custo do tecido", f"R$ {float(item.get('Custo do tecido',0)):.2f}")
-    r2.metric("Oficina", f"R$ {float(item.get('Oficina',0)):.2f}")
-    r3.metric("Lavanderia", f"R$ {float(item.get('Lavanderia',0)):.2f}")
-
-    r4, r5, r6 = st.columns(3)
-    r4.metric("Aviamento", f"R$ {float(item.get('Aviamento',0)):.2f}")
-    r5.metric("Adicionais", f"R$ {float(item.get('Detalhes (adicionais)',0)):.2f}")
-    r6.metric("Despesa fixa", f"R$ {float(item.get('Despesa Fixa',0)):.2f}")
+    # ✅ 1) TOTAL PRIMEIRO
+    total = float(item.get("Total", 0) or 0)
+    st.markdown("## 💰 TOTAL DA PEÇA")
+    st.metric("", f"R$ {total:.2f}")
 
     st.divider()
+
+    # ✅ 2) VALORES DIVIDIDOS
+    st.subheader("📊 Composição do custo")
+
+    tecido = float(item.get("Custo do tecido", 0) or 0)
+    oficina = float(item.get("Oficina", 0) or 0)
+    lavanderia = float(item.get("Lavanderia", 0) or 0)
+    aviamento = float(item.get("Aviamento", 0) or 0)
+    adicionais = float(item.get("Detalhes (adicionais)", 0) or 0)
+    despesa_fixa = float(item.get("Despesa Fixa", 0) or 0)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("🧵 Tecido", f"R$ {tecido:.2f}")
+    c2.metric("🏭 Oficina", f"R$ {oficina:.2f}")
+    c3.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
+
+    c4, c5, c6 = st.columns(3)
+    c4.metric("🧷 Aviamento", f"R$ {aviamento:.2f}")
+    c5.metric("➕ Adicionais", f"R$ {adicionais:.2f}")
+    c6.metric("📌 Despesa fixa", f"R$ {despesa_fixa:.2f}")
+
+    st.divider()
+
+    # ✅ 3) IDENTIFICAÇÃO POR ÚLTIMO
+    st.subheader("📄 Identificação")
+    st.write(f"**Referência:** {item.get('Referência','')}")
+    st.write(f"**Descrição:** {item.get('Descrição','')}")
+
+    st.divider()
+
     st.subheader("📥 Excel simples (desta ficha)")
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
@@ -201,7 +217,12 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
             key=f"{prefix}_select"
         )
     with colS2:
-        add = st.button("Adicionar", use_container_width=True, key=f"{prefix}_add_btn", disabled=(escolhido == "(selecione)"))
+        add = st.button(
+            "Adicionar",
+            use_container_width=True,
+            key=f"{prefix}_add_btn",
+            disabled=(escolhido == "(selecione)")
+        )
 
     if add and escolhido != "(selecione)":
         linha_df = df[df["servico"] == escolhido].iloc[0].to_dict()
@@ -299,9 +320,7 @@ def render_pesquisar():
         df_sel,
         use_container_width=True,
         hide_index=True,
-        column_config={
-            "Selecionar": st.column_config.CheckboxColumn(required=False),
-        },
+        column_config={"Selecionar": st.column_config.CheckboxColumn(required=False)},
         disabled=[c for c in df_sel.columns if c != "Selecionar"],
         key="editor_hist"
     )
