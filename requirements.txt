@@ -1,5 +1,4 @@
 supabase==2.6.0
-txt
 qrcode[pil]
 streamlit
 pandas
