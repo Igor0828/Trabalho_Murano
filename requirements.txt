@@ -1,4 +1,4 @@
-supabase
+supabase-py
 txt
 qrcode[pil]
 streamlit
