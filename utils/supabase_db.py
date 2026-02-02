@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
+# Colunas "bonitas" que você usa no app/Excel
 COLUNAS_PADRAO = [
     "Referência",
     "Descrição",
@@ -16,7 +17,7 @@ COLUNAS_PADRAO = [
     "Total",
 ]
 
-# Mapeamento: coluna do app -> coluna do banco
+# Mapeamento App -> Banco (de acordo com seu SQL!)
 APP_TO_DB = {
     "Referência": "referencia",
     "Descrição": "descricao",
@@ -41,9 +42,9 @@ def _sb() -> Client:
     return create_client(url, key)
 
 
-def append_row(linha: dict) -> None:
+def salvar_historico(linha: dict) -> None:
     """
-    Insere 1 registro na tabela historico_pecas.
+    Insere 1 registro no Supabase (tabela public.historico_pecas).
     """
     sb = _sb()
 
@@ -53,20 +54,35 @@ def append_row(linha: dict) -> None:
 
     # Garantias mínimas
     payload["referencia"] = str(payload.get("referencia", "")).strip()
+    payload["descricao"] = str(payload.get("descricao", "")).strip()
+
     if not payload["referencia"]:
         raise ValueError("Referência vazia.")
 
+    # Números como float (evita erro silencioso com string/vazio)
+    num_cols = [
+        "tecido_rs_m", "consumo_m", "custo_tecido",
+        "oficina", "lavanderia", "aviamento",
+        "adicionais", "despesa_fixa", "total"
+    ]
+    for c in num_cols:
+        v = payload.get(c, 0)
+        try:
+            payload[c] = float(v) if v is not None else 0.0
+        except Exception:
+            payload[c] = 0.0
+
     sb.table("historico_pecas").insert(payload).execute()
 
-    # força atualizar cache de leitura
+    # Atualiza cache de leitura
     st.cache_data.clear()
 
 
 @st.cache_data(ttl=20)
-def read_all(limit: int = 5000) -> pd.DataFrame:
+def ler_historico(limit: int = 5000) -> pd.DataFrame:
     """
-    Lê o histórico (até 'limit' linhas), mais recentes primeiro.
-    Cache curto para reduzir chamadas.
+    Lê o histórico do Supabase (mais recentes primeiro).
+    Retorna DataFrame com as colunas no formato do app.
     """
     sb = _sb()
 
@@ -84,27 +100,23 @@ def read_all(limit: int = 5000) -> pd.DataFrame:
 
     df = pd.DataFrame(data)
 
-    # Converte DB -> App
+    # DB -> App
     df_out = pd.DataFrame()
     for db_col, app_col in DB_TO_APP.items():
-        if db_col in df.columns:
-            df_out[app_col] = df[db_col]
-        else:
-            df_out[app_col] = None
+        df_out[app_col] = df[db_col] if db_col in df.columns else None
 
-    # Garante ordem
+    # Ordena colunas
     df_out = df_out.reindex(columns=COLUNAS_PADRAO)
 
-    # Tipos numéricos
-    num_cols = [
+    # Tipagem numérica
+    num_cols_app = [
         "Tecido (R$/m)", "Consumo (m)", "Custo do tecido",
         "Oficina", "Lavanderia", "Aviamento",
         "Detalhes (adicionais)", "Despesa Fixa", "Total"
     ]
-    for c in num_cols:
+    for c in num_cols_app:
         df_out[c] = pd.to_numeric(df_out[c], errors="coerce").fillna(0.0)
 
-    # Strings
     df_out["Referência"] = df_out["Referência"].fillna("").astype(str)
     df_out["Descrição"] = df_out["Descrição"].fillna("").astype(str)
 
