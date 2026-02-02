@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
-# Colunas "bonitas" que você usa no app/Excel
+# Colunas que o app usa (com acentos e parênteses)
 COLUNAS_PADRAO = [
     "Referência",
     "Descrição",
@@ -17,7 +17,7 @@ COLUNAS_PADRAO = [
     "Total",
 ]
 
-# Mapeamento App -> Banco (de acordo com seu SQL!)
+# Mapeamento APP -> BANCO (bate com seu SQL)
 APP_TO_DB = {
     "Referência": "referencia",
     "Descrição": "descricao",
@@ -44,7 +44,7 @@ def _sb() -> Client:
 
 def salvar_historico(linha: dict) -> None:
     """
-    Insere 1 registro no Supabase (tabela public.historico_pecas).
+    Insere 1 registro na tabela public.historico_pecas.
     """
     sb = _sb()
 
@@ -52,14 +52,13 @@ def salvar_historico(linha: dict) -> None:
     for app_col, db_col in APP_TO_DB.items():
         payload[db_col] = linha.get(app_col, None)
 
-    # Garantias mínimas
     payload["referencia"] = str(payload.get("referencia", "")).strip()
     payload["descricao"] = str(payload.get("descricao", "")).strip()
 
     if not payload["referencia"]:
         raise ValueError("Referência vazia.")
 
-    # Números como float (evita erro silencioso com string/vazio)
+    # garante números
     num_cols = [
         "tecido_rs_m", "consumo_m", "custo_tecido",
         "oficina", "lavanderia", "aviamento",
@@ -73,16 +72,14 @@ def salvar_historico(linha: dict) -> None:
             payload[c] = 0.0
 
     sb.table("historico_pecas").insert(payload).execute()
-
-    # Atualiza cache de leitura
     st.cache_data.clear()
 
 
 @st.cache_data(ttl=20)
 def ler_historico(limit: int = 5000) -> pd.DataFrame:
     """
-    Lê o histórico do Supabase (mais recentes primeiro).
-    Retorna DataFrame com as colunas no formato do app.
+    Lê o histórico do Supabase (mais recentes primeiro)
+    e devolve no formato do app (COLUNAS_PADRAO).
     """
     sb = _sb()
 
@@ -94,21 +91,19 @@ def ler_historico(limit: int = 5000) -> pd.DataFrame:
         .execute()
     )
 
-    data = resp.data or []
-    if not data:
+    rows = resp.data or []
+    if not rows:
         return pd.DataFrame(columns=COLUNAS_PADRAO)
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(rows)
 
-    # DB -> App
     df_out = pd.DataFrame()
     for db_col, app_col in DB_TO_APP.items():
         df_out[app_col] = df[db_col] if db_col in df.columns else None
 
-    # Ordena colunas
     df_out = df_out.reindex(columns=COLUNAS_PADRAO)
 
-    # Tipagem numérica
+    # tipagem numérica
     num_cols_app = [
         "Tecido (R$/m)", "Consumo (m)", "Custo do tecido",
         "Oficina", "Lavanderia", "Aviamento",
