@@ -272,7 +272,7 @@ def render_pesquisar():
 
     q = st.text_input(
         "Pesquisar por Referência ou Descrição",
-        placeholder="Ex: 2501 ou 'calça reta'"
+        placeholder="Ex: 21000 ou 'calça reta'"
     ).strip().lower()
 
     df_view = df_hist.copy()
