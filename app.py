@@ -155,7 +155,7 @@ if "adicionais_itens" not in st.session_state:
         {"nome": "Fivela", "valor": 0.0},
         {"nome": "Cordão", "valor": 0.0},
         {"nome": "Lenço", "valor": 0.0},
-        {"nome": "Barra dobrada", "valor": 0.0},
+        {"nome": "Bordado", "valor": 0.0},
     ]
 
 
