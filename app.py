@@ -65,59 +65,59 @@ if view == "ficha" and ref_qr:
     df = ler_historico()
 
     if df.empty:
-        st.error("Histórico vazio. Adicione uma peça primeiro.")
+        st.error("Histórico vazio.")
         st.stop()
 
     linha = df[df["Referência"].astype(str) == str(ref_qr)]
     if linha.empty:
-        st.error("Referência não encontrada no histórico.")
+        st.error("Referência não encontrada.")
         st.stop()
 
     item = linha.iloc[0].to_dict()
 
-    ref_txt = str(item.get("Referência", "")).strip()
-    desc_txt = str(item.get("Descrição", "")).strip()
+    ref_txt = item.get("Referência", "")
+    desc_txt = item.get("Descrição", "")
     total = float(item.get("Total", 0) or 0)
 
-    # 🧾 REF + DESCRIÇÃO (lado a lado)
-    c_ref, c_desc = st.columns([1, 2])
-    with c_ref:
+    # 🔝 TOPO — REF + CUSTO TOTAL
+    c1, c2 = st.columns([2, 1])
+
+    with c1:
         st.markdown(
-            f"<div style='font-size:32px; font-weight:900;'>{ref_txt}</div>",
+            f"<div style='font-size:38px; font-weight:900;'>REF {ref_txt}</div>",
             unsafe_allow_html=True
         )
-    with c_desc:
         st.markdown(
-            f"<div style='font-size:18px; opacity:0.85; padding-top:8px;'>{desc_txt}</div>",
+            f"<div style='font-size:18px; opacity:0.85;'>{desc_txt}</div>",
+            unsafe_allow_html=True
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div style="
+                border: 2px solid #888;
+                border-radius: 14px;
+                padding: 14px;
+                text-align: center;
+            ">
+                <div style="font-size:14px; opacity:0.75;">CUSTO TOTAL</div>
+                <div style="font-size:34px; font-weight:900;">
+                    R$ {total:.2f}
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
     st.divider()
 
-    # 💰 CUSTO TOTAL (BOX)
+    # 📋 DETALHADO
     st.markdown(
-        f"""
-        <div style="
-            border: 2px solid #999;
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-            margin-bottom: 10px;
-        ">
-            <div style="font-size:14px; opacity:0.75;">
-                CUSTO TOTAL
-            </div>
-            <div style="font-size:40px; font-weight:900;">
-                R$ {total:.2f}
-            </div>
-        </div>
-        """,
+        "<div style='font-size:20px; font-weight:700; margin-bottom:8px;'>DETALHADO</div>",
         unsafe_allow_html=True
     )
 
-    st.divider()
-
-    # 📊 COMPOSIÇÃO DO CUSTO
     tecido = float(item.get("Custo do tecido", 0) or 0)
     oficina = float(item.get("Oficina", 0) or 0)
     lavanderia = float(item.get("Lavanderia", 0) or 0)
@@ -125,24 +125,24 @@ if view == "ficha" and ref_qr:
     adicionais = float(item.get("Detalhes (adicionais)", 0) or 0)
     despesa_fixa = float(item.get("Despesa Fixa", 0) or 0)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🧵 Tecido", f"R$ {tecido:.2f}")
-    c2.metric("🏭 Oficina", f"R$ {oficina:.2f}")
-    c3.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
+    c3, c4, c5 = st.columns(3)
+    c3.metric("🧵 Tecido", f"R$ {tecido:.2f}")
+    c4.metric("🏭 Oficina", f"R$ {oficina:.2f}")
+    c5.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
 
-    c4, c5, c6 = st.columns(3)
-    c4.metric("🧷 Aviam.", f"R$ {aviamento:.2f}")
-    c5.metric("➕ Adic.", f"R$ {adicionais:.2f}")
-    c6.metric("📌 Desp. fixa", f"R$ {despesa_fixa:.2f}")
+    c6, c7, c8 = st.columns(3)
+    c6.metric("🧷 Aviamento", f"R$ {aviamento:.2f}")
+    c7.metric("➕ Adicionais", f"R$ {adicionais:.2f}")
+    c8.metric("📌 Desp. fixa", f"R$ {despesa_fixa:.2f}")
 
     st.divider()
 
-    # 📥 Excel simples
+    # 📥 Excel (opcional)
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
         data=excel_buffer.getvalue(),
-        file_name=f"ficha_{ref_qr}.xlsx",
+        file_name=f"ficha_{ref_txt}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
