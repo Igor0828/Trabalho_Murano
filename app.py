@@ -58,25 +58,40 @@ check_password()
 # URL: ?view=ficha&ref=XXXX
 # -------------------------------
 params = st.query_params
-view = params.get("view", "")
-ref_qr = params.get("ref", "")
+
+def _qp(key: str, default: str = "") -> str:
+    """Lê query param de forma robusta (str ou lista)."""
+    val = params.get(key, default)
+    if isinstance(val, list):
+        return str(val[0]) if val else default
+    return str(val) if val is not None else default
+
+view = _qp("view", "")
+ref_qr = _qp("ref", "").strip()
 
 if view == "ficha" and ref_qr:
+    # ✅ Marcador para confirmar que entrou no layout novo
+    st.success("✅ NOVO LAYOUT ATIVO")
+
     df = ler_historico()
 
     if df.empty:
         st.error("Histórico vazio.")
         st.stop()
 
-    linha = df[df["Referência"].astype(str) == str(ref_qr)]
+    # garante coluna como string e filtra
+    df["Referência"] = df["Referência"].astype(str)
+    linha = df[df["Referência"] == str(ref_qr)]
+
     if linha.empty:
         st.error("Referência não encontrada.")
         st.stop()
 
+    # pega o mais recente (se vier ordenado ao contrário, ainda funciona)
     item = linha.iloc[0].to_dict()
 
-    ref_txt = item.get("Referência", "")
-    desc_txt = item.get("Descrição", "")
+    ref_txt = str(item.get("Referência", "") or "")
+    desc_txt = str(item.get("Descrição", "") or "")
     total = float(item.get("Total", 0) or 0)
 
     # 🔝 TOPO — REF + CUSTO TOTAL
