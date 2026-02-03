@@ -146,7 +146,6 @@ if view == "ficha" and ref_qr:
 
     st.stop()
 
-
 # -------------------------------
 # 📌 Leitura tabela Oficina
 # -------------------------------
