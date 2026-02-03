@@ -73,35 +73,32 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada no histórico.")
         st.stop()
 
-    item = linha.iloc[0].to_dict()  # mais recente primeiro
+    item = linha.iloc[0].to_dict()
 
     ref_txt = str(item.get("Referência", "")).strip()
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-    # ✅ Cabeçalho com REF e DESCRIÇÃO bem em evidência
+    # 🔥 REFERÊNCIA — MAIOR DE TODOS
     st.markdown(
         f"""
-        <div style="text-align:center; padding: 8px 0 4px 0;">
-            <div style="font-size: 34px; font-weight: 800; line-height: 1.1;">
+        <div style="text-align:center; margin-top: 10px;">
+            <div style="font-size: 48px; font-weight: 900; line-height: 1.05;">
                 {ref_txt}
-            </div>
-            <div style="font-size: 18px; opacity: 0.85; margin-top: 6px;">
-                {desc_txt}
             </div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # ✅ TOTAL grande logo abaixo
+    # 💰 TOTAL — GRANDE, MAS MENOR QUE A REF
     st.markdown(
         f"""
-        <div style="text-align:center; margin-top: 10px; margin-bottom: 6px;">
+        <div style="text-align:center; margin-top: 10px;">
             <div style="font-size: 14px; opacity: 0.75;">
-                TOTAL DA PEÇA
+                CUSTO TOTAL
             </div>
-            <div style="font-size: 46px; font-weight: 900; line-height: 1.0;">
+            <div style="font-size: 36px; font-weight: 800; line-height: 1.1;">
                 R$ {total:.2f}
             </div>
         </div>
@@ -109,9 +106,20 @@ if view == "ficha" and ref_qr:
         unsafe_allow_html=True
     )
 
+    # 📝 DESCRIÇÃO — APOIO
+    if desc_txt:
+        st.markdown(
+            f"""
+            <div style="text-align:center; margin-top: 6px; font-size: 16px; opacity: 0.85;">
+                {desc_txt}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
     st.divider()
 
-    # ✅ Composição do custo
+    # 📊 COMPOSIÇÃO DO CUSTO
     st.subheader("📊 Composição do custo")
 
     tecido = float(item.get("Custo do tecido", 0) or 0)
@@ -133,8 +141,7 @@ if view == "ficha" and ref_qr:
 
     st.divider()
 
-    # Excel simples da ficha (opcional manter)
-    st.subheader("📥 Excel simples (desta ficha)")
+    # 📥 Excel simples
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
