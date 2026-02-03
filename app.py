@@ -79,7 +79,6 @@ if view == "ficha" and ref_qr:
         st.error("Histórico vazio.")
         st.stop()
 
-    # garante coluna como string e filtra
     df["Referência"] = df["Referência"].astype(str)
     linha = df[df["Referência"] == str(ref_qr)]
 
@@ -87,59 +86,59 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada.")
         st.stop()
 
-    # pega o mais recente (se vier ordenado ao contrário, ainda funciona)
-item = linha.iloc[0].to_dict()
+    # pega o mais recente
+    item = linha.iloc[0].to_dict()
 
-# ✅ DEFINIÇÕES (obrigatório)
-ref_txt = str(item.get("Referência", "")).strip()
-desc_txt = str(item.get("Descrição", "")).strip()
-total = float(item.get("Total", 0) or 0)
+    # ✅ DEFINIÇÕES (obrigatório)
+    ref_txt = str(item.get("Referência", "")).strip()
+    desc_txt = str(item.get("Descrição", "")).strip()
+    total = float(item.get("Total", 0) or 0)
 
-# 🔝 TOPO — REF + CUSTO TOTAL (PREMIUM)
-c1, c2 = st.columns([2, 1])
+    # 🔝 TOPO — REF + CUSTO TOTAL (PREMIUM)
+    c1, c2 = st.columns([2, 1])
 
-with c1:
-    st.markdown(
-        f"""
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div style="font-size:13px; letter-spacing:0.12em; opacity:0.55;">
-                REFERÊNCIA
+    with c1:
+        st.markdown(
+            f"""
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="font-size:13px; letter-spacing:0.12em; opacity:0.55;">
+                    REFERÊNCIA
+                </div>
+
+                <div style="font-size:46px; font-weight:900; color:#FFFFFF; line-height:1.05;">
+                    {ref_txt}
+                </div>
+
+                <div style="font-size:17px; opacity:0.80; max-width:90%;">
+                    {desc_txt}
+                </div>
             </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            <div style="font-size:46px; font-weight:900; color:#FFFFFF; line-height:1.05;">
-                {ref_txt}
-            </div>
+    with c2:
+        st.markdown(
+            f"""
+            <div style="
+                border: 1.5px solid rgba(255,215,130,0.45);
+                background: linear-gradient(160deg, rgba(255,215,130,0.08), rgba(0,0,0,0.15));
+                border-radius: 18px;
+                padding: 16px 14px 14px 14px;
+                text-align: center;
+            ">
+                <div style="font-size:12px; letter-spacing:0.14em; opacity:0.65; margin-bottom:6px;">
+                    CUSTO TOTAL
+                </div>
 
-            <div style="font-size:17px; opacity:0.80; max-width:90%;">
-                {desc_txt}
+                <div style="font-size:38px; font-weight:900; color:#FFD27D; letter-spacing:0.02em;">
+                    R$ {total:.2f}
+                </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
 
-with c2:
-    st.markdown(
-        f"""
-        <div style="
-            border: 1.5px solid rgba(255,215,130,0.45);
-            background: linear-gradient(160deg, rgba(255,215,130,0.08), rgba(0,0,0,0.15));
-            border-radius: 18px;
-            padding: 16px 14px 14px 14px;
-            text-align: center;
-        ">
-            <div style="font-size:12px; letter-spacing:0.14em; opacity:0.65; margin-bottom:6px;">
-                CUSTO TOTAL
-            </div>
-
-            <div style="font-size:38px; font-weight:900; color:#FFD27D; letter-spacing:0.02em;">
-                R$ {total:.2f}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
     st.divider()
 
     # 📋 DETALHADO
@@ -167,7 +166,6 @@ with c2:
 
     st.divider()
 
-    # 📥 Excel (opcional)
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
