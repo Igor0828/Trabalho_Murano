@@ -79,26 +79,35 @@ if view == "ficha" and ref_qr:
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-    # 🔥 REFERÊNCIA — MAIOR DE TODOS
-    st.markdown(
-        f"""
-        <div style="text-align:center; margin-top: 10px;">
-            <div style="font-size: 48px; font-weight: 900; line-height: 1.05;">
-                {ref_txt}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # 🧾 REF + DESCRIÇÃO (lado a lado)
+    c_ref, c_desc = st.columns([1, 2])
+    with c_ref:
+        st.markdown(
+            f"<div style='font-size:32px; font-weight:900;'>{ref_txt}</div>",
+            unsafe_allow_html=True
+        )
+    with c_desc:
+        st.markdown(
+            f"<div style='font-size:18px; opacity:0.85; padding-top:8px;'>{desc_txt}</div>",
+            unsafe_allow_html=True
+        )
 
-    # 💰 TOTAL — GRANDE, MAS MENOR QUE A REF
+    st.divider()
+
+    # 💰 CUSTO TOTAL (BOX)
     st.markdown(
         f"""
-        <div style="text-align:center; margin-top: 10px;">
-            <div style="font-size: 14px; opacity: 0.75;">
+        <div style="
+            border: 2px solid #999;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 10px;
+        ">
+            <div style="font-size:14px; opacity:0.75;">
                 CUSTO TOTAL
             </div>
-            <div style="font-size: 36px; font-weight: 800; line-height: 1.1;">
+            <div style="font-size:40px; font-weight:900;">
                 R$ {total:.2f}
             </div>
         </div>
@@ -106,22 +115,9 @@ if view == "ficha" and ref_qr:
         unsafe_allow_html=True
     )
 
-    # 📝 DESCRIÇÃO — APOIO
-    if desc_txt:
-        st.markdown(
-            f"""
-            <div style="text-align:center; margin-top: 6px; font-size: 16px; opacity: 0.85;">
-                {desc_txt}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
     st.divider()
 
     # 📊 COMPOSIÇÃO DO CUSTO
-    st.subheader("📊 Composição do custo")
-
     tecido = float(item.get("Custo do tecido", 0) or 0)
     oficina = float(item.get("Oficina", 0) or 0)
     lavanderia = float(item.get("Lavanderia", 0) or 0)
@@ -135,9 +131,9 @@ if view == "ficha" and ref_qr:
     c3.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
 
     c4, c5, c6 = st.columns(3)
-    c4.metric("🧷 Aviamento", f"R$ {aviamento:.2f}")
-    c5.metric("➕ Adicionais", f"R$ {adicionais:.2f}")
-    c6.metric("📌 Despesa fixa", f"R$ {despesa_fixa:.2f}")
+    c4.metric("🧷 Aviam.", f"R$ {aviamento:.2f}")
+    c5.metric("➕ Adic.", f"R$ {adicionais:.2f}")
+    c6.metric("📌 Desp. fixa", f"R$ {despesa_fixa:.2f}")
 
     st.divider()
 
