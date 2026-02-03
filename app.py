@@ -62,8 +62,6 @@ view = params.get("view", "")
 ref_qr = params.get("ref", "")
 
 if view == "ficha" and ref_qr:
-    st.title("🧾 Ficha Técnica (QR)")
-
     df = ler_historico()
 
     if df.empty:
@@ -75,17 +73,45 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada no histórico.")
         st.stop()
 
-    # como vem mais recente primeiro, pega a primeira
-    item = linha.iloc[0].to_dict()
+    item = linha.iloc[0].to_dict()  # mais recente primeiro
 
-    # ✅ 1) TOTAL PRIMEIRO
+    ref_txt = str(item.get("Referência", "")).strip()
+    desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
-    st.markdown("## 💰 TOTAL DA PEÇA")
-    st.metric("", f"R$ {total:.2f}")
+
+    # ✅ Cabeçalho com REF e DESCRIÇÃO bem em evidência
+    st.markdown(
+        f"""
+        <div style="text-align:center; padding: 8px 0 4px 0;">
+            <div style="font-size: 34px; font-weight: 800; line-height: 1.1;">
+                {ref_txt}
+            </div>
+            <div style="font-size: 18px; opacity: 0.85; margin-top: 6px;">
+                {desc_txt}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # ✅ TOTAL grande logo abaixo
+    st.markdown(
+        f"""
+        <div style="text-align:center; margin-top: 10px; margin-bottom: 6px;">
+            <div style="font-size: 14px; opacity: 0.75;">
+                TOTAL DA PEÇA
+            </div>
+            <div style="font-size: 46px; font-weight: 900; line-height: 1.0;">
+                R$ {total:.2f}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.divider()
 
-    # ✅ 2) VALORES DIVIDIDOS
+    # ✅ Composição do custo
     st.subheader("📊 Composição do custo")
 
     tecido = float(item.get("Custo do tecido", 0) or 0)
@@ -107,13 +133,7 @@ if view == "ficha" and ref_qr:
 
     st.divider()
 
-    # ✅ 3) IDENTIFICAÇÃO POR ÚLTIMO
-    st.subheader("📄 Identificação")
-    st.write(f"**Referência:** {item.get('Referência','')}")
-    st.write(f"**Descrição:** {item.get('Descrição','')}")
-
-    st.divider()
-
+    # Excel simples da ficha (opcional manter)
     st.subheader("📥 Excel simples (desta ficha)")
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
