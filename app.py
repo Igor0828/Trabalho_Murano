@@ -77,7 +77,7 @@ if view == "ficha" and ref_qr:
         st.stop()
 
     df["Referência"] = df["Referência"].astype(str)
-    linha = df[df["Referência"] == ref_qr]
+    linha = df[df["Referência"] == str(ref_qr)]
 
     if linha.empty:
         st.error("Referência não encontrada.")
@@ -85,85 +85,49 @@ if view == "ficha" and ref_qr:
 
     item = linha.iloc[0].to_dict()
 
-    # 📌 Dados principais
+    # ✅ DEFINIÇÕES (antes do layout)
     ref_txt = str(item.get("Referência", "")).strip()
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
     # 🔝 TOPO — REF + CUSTO TOTAL (mobile safe / sem cortar)
-c1, c2 = st.columns([2, 1])
+    c1, c2 = st.columns([2, 1])
 
-with c1:
-    st.markdown(
-        f"""
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div style="
-                font-size:13px;
-                letter-spacing:0.12em;
-                color: rgba(255,255,255,0.75);
-                font-weight:700;
-            ">
-                REFERÊNCIA
-            </div>
+    with c1:
+        st.markdown(
+            f"""
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="
+                    font-size:13px;
+                    letter-spacing:0.12em;
+                    color: rgba(255,255,255,0.75);
+                    font-weight:700;
+                ">
+                    REFERÊNCIA
+                </div>
 
-            <div style="
-                font-size:clamp(34px, 7vw, 46px);
-                font-weight:900;
-                color:#4DA3FF;
-                line-height:1.05;
-                text-shadow: 0 0 18px rgba(77,163,255,0.30);
-                word-break: break-word;
-            ">
-                🧾 {ref_txt}
-            </div>
+                <div style="
+                    font-size:clamp(34px, 7vw, 46px);
+                    font-weight:900;
+                    color:#4DA3FF;
+                    line-height:1.05;
+                    text-shadow: 0 0 18px rgba(77,163,255,0.30);
+                    word-break: break-word;
+                ">
+                    🧾 {ref_txt}
+                </div>
 
-            <div style="
-                font-size:16px;
-                color: rgba(255,255,255,0.90);
-                line-height:1.25;
-            ">
-                {desc_txt}
+                <div style="
+                    font-size:16px;
+                    color: rgba(255,255,255,0.90);
+                    line-height:1.25;
+                ">
+                    {desc_txt}
+                </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with c2:
-    st.markdown(
-        f"""
-        <div style="
-            border: 2px solid rgba(0,255,140,0.35);
-            background: rgba(0,255,140,0.08);
-            border-radius: 16px;
-            padding: 14px 12px;
-            text-align: center;
-            overflow: hidden;
-        ">
-            <div style="
-                font-size:12px;
-                letter-spacing:0.14em;
-                color: rgba(255,255,255,0.75);
-                font-weight:700;
-                margin-bottom:8px;
-            ">
-                💰 CUSTO TOTAL
-            </div>
-
-            <div style="
-                font-size:clamp(26px, 6vw, 36px);
-                font-weight:900;
-                color:#00E676;
-                text-shadow: 0 0 18px rgba(0,230,118,0.30);
-                line-height:1.15;
-                white-space: nowrap;
-            ">
-                R$ {total:.2f}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
 
     with c2:
         st.markdown(
@@ -172,29 +136,27 @@ with c2:
                 border: 2px solid rgba(0,255,140,0.35);
                 background: rgba(0,255,140,0.08);
                 border-radius: 16px;
-                padding: 18px 14px;
-                min-height: 130px;
-                display:flex;
-                flex-direction:column;
-                justify-content:center;
-                align-items:center;
-                gap:8px;
-                text-align:center;
+                padding: 14px 12px;
+                text-align: center;
+                overflow: hidden;
             ">
                 <div style="
                     font-size:12px;
                     letter-spacing:0.14em;
                     color: rgba(255,255,255,0.75);
                     font-weight:700;
+                    margin-bottom:8px;
                 ">
                     💰 CUSTO TOTAL
                 </div>
 
                 <div style="
-                    font-size:36px;
+                    font-size:clamp(26px, 6vw, 36px);
                     font-weight:900;
                     color:#00E676;
                     text-shadow: 0 0 18px rgba(0,230,118,0.30);
+                    line-height:1.15;
+                    white-space: nowrap;
                 ">
                     R$ {total:.2f}
                 </div>
@@ -203,12 +165,11 @@ with c2:
             unsafe_allow_html=True
         )
 
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
     st.divider()
 
     # 📋 DETALHADO
     st.markdown(
-        "<div style='font-size:20px; font-weight:800;'>DETALHADO</div>",
+        "<div style='font-size:20px; font-weight:700; margin-bottom:8px;'>DETALHADO</div>",
         unsafe_allow_html=True
     )
 
@@ -231,7 +192,7 @@ with c2:
 
     st.divider()
 
-    # 📥 Excel
+    # 📥 Excel (opcional)
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
@@ -241,7 +202,10 @@ with c2:
         use_container_width=True
     )
 
-    st.stop()# -------------------------------
+    st.stop()
+
+    
+# -------------------------------
 # 🧾 Ficha técnica (modo QR)
 # URL: ?view=ficha&ref=XXXX
 # -------------------------------
