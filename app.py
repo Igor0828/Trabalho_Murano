@@ -63,8 +63,8 @@ params = st.query_params
 def _qp(key: str, default: str = "") -> str:
     val = params.get(key, default)
     if isinstance(val, list):
-        return val[0] if val else default
-    return val if val is not None else default
+        return str(val[0]) if val else default
+    return str(val) if val is not None else default
 
 view = _qp("view", "")
 ref_qr = _qp("ref", "").strip()
@@ -85,10 +85,94 @@ if view == "ficha" and ref_qr:
 
     item = linha.iloc[0].to_dict()
 
-    # 🔑 Dados principais
+    # 📌 Dados principais
     ref_txt = str(item.get("Referência", "")).strip()
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
+
+    # 🔝 TOPO — REF + CUSTO TOTAL (mobile safe)
+    c1, c2 = st.columns([2, 1])
+
+    with c1:
+        st.markdown(
+            f"""
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="
+                    font-size:13px;
+                    letter-spacing:0.12em;
+                    color: rgba(255,255,255,0.75);
+                    font-weight:700;
+                ">
+                    REFERÊNCIA
+                </div>
+
+                <div style="
+                    font-size:46px;
+                    font-weight:900;
+                    color:#4DA3FF;
+                    line-height:1.05;
+                    text-shadow: 0 0 18px rgba(77,163,255,0.30);
+                ">
+                    🧾 {ref_txt}
+                </div>
+
+                <div style="
+                    font-size:18px;
+                    color: rgba(255,255,255,0.90);
+                ">
+                    {desc_txt}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div style="
+                border: 2px solid rgba(0,255,140,0.35);
+                background: rgba(0,255,140,0.08);
+                border-radius: 16px;
+                padding: 18px 14px;
+                min-height: 130px;
+                display:flex;
+                flex-direction:column;
+                justify-content:center;
+                align-items:center;
+                gap:8px;
+                text-align:center;
+            ">
+                <div style="
+                    font-size:12px;
+                    letter-spacing:0.14em;
+                    color: rgba(255,255,255,0.75);
+                    font-weight:700;
+                ">
+                    💰 CUSTO TOTAL
+                </div>
+
+                <div style="
+                    font-size:36px;
+                    font-weight:900;
+                    color:#00E676;
+                    text-shadow: 0 0 18px rgba(0,230,118,0.30);
+                ">
+                    R$ {total:.2f}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+    st.divider()
+
+    # 📋 DETALHADO
+    st.markdown(
+        "<div style='font-size:20px; font-weight:800;'>DETALHADO</div>",
+        unsafe_allow_html=True
+    )
 
     tecido = float(item.get("Custo do tecido", 0) or 0)
     oficina = float(item.get("Oficina", 0) or 0)
@@ -97,74 +181,19 @@ if view == "ficha" and ref_qr:
     adicionais = float(item.get("Detalhes (adicionais)", 0) or 0)
     despesa_fixa = float(item.get("Despesa Fixa", 0) or 0)
 
-    # 🔝 TOPO — REF + CUSTO TOTAL (PREMIUM)
-    html_topo = f"""
-    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:stretch;">
-        <div style="flex:2; min-width:240px;">
-            <div style="font-size:13px; letter-spacing:0.14em; opacity:0.55;">
-                REFERÊNCIA
-            </div>
+    c3, c4, c5 = st.columns(3)
+    c3.metric("🧵 Tecido", f"R$ {tecido:.2f}")
+    c4.metric("🏭 Oficina", f"R$ {oficina:.2f}")
+    c5.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
 
-            <div style="
-                font-size:48px;
-                font-weight:900;
-                color:#4DA3FF;
-                line-height:1;
-                text-shadow:0 0 18px rgba(77,163,255,0.25);
-                margin-top:4px;
-            ">
-                {ref_txt}
-            </div>
-
-            <div style="font-size:18px; opacity:0.85; margin-top:8px;">
-                {desc_txt}
-            </div>
-        </div>
-
-        <div style="
-            flex:1;
-            min-width:220px;
-            border:2px solid rgba(0,255,140,0.35);
-            background:rgba(0,255,140,0.06);
-            border-radius:18px;
-            padding:16px;
-            text-align:center;
-        ">
-            <div style="font-size:13px; letter-spacing:0.14em; opacity:0.7;">
-                💰 CUSTO TOTAL
-            </div>
-
-            <div style="
-                font-size:40px;
-                font-weight:900;
-                color:#00E676;
-                margin-top:6px;
-                text-shadow:0 0 18px rgba(0,230,118,0.25);
-            ">
-                R$ {total:.2f}
-            </div>
-        </div>
-    </div>
-    """
-
-    components.html(html_topo, height=190)
+    c6, c7, c8 = st.columns(3)
+    c6.metric("🧷 Aviamento", f"R$ {aviamento:.2f}")
+    c7.metric("➕ Adicionais", f"R$ {adicionais:.2f}")
+    c8.metric("📌 Desp. fixa", f"R$ {despesa_fixa:.2f}")
 
     st.divider()
 
-    # 📋 DETALHADO
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🧵 Tecido", f"R$ {tecido:.2f}")
-    c2.metric("🏭 Oficina", f"R$ {oficina:.2f}")
-    c3.metric("🧼 Lavanderia", f"R$ {lavanderia:.2f}")
-
-    c4, c5, c6 = st.columns(3)
-    c4.metric("🧷 Aviamento", f"R$ {aviamento:.2f}")
-    c5.metric("➕ Adicionais", f"R$ {adicionais:.2f}")
-    c6.metric("📌 Desp. fixa", f"R$ {despesa_fixa:.2f}")
-
-    st.divider()
-
-    # 📥 Excel simples
+    # 📥 Excel
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
