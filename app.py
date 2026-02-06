@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import os
 from pathlib import Path
 from io import BytesIO
 import qrcode
 import streamlit.components.v1 as components
-import textwrap
 
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel_simples, gerar_excel_multiplos
@@ -61,11 +59,13 @@ check_password()
 # -------------------------------
 params = st.query_params
 
+
 def _qp(key: str, default: str = "") -> str:
     val = params.get(key, default)
     if isinstance(val, list):
         return str(val[0]) if val else default
     return str(val) if val is not None else default
+
 
 view = _qp("view", "")
 ref_qr = _qp("ref", "").strip()
@@ -84,93 +84,95 @@ if view == "ficha" and ref_qr:
         st.error("Referência não encontrada.")
         st.stop()
 
-    # pega o mais recente (se seu ler_historico já vem ordenado por created_at desc, iloc[0] é o último)
     item = linha.iloc[0].to_dict()
 
-    # ✅ DEFINIÇÕES (antes do layout)
+    # ✅ DEFINIÇÕES
     ref_txt = str(item.get("Referência", "")).strip()
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-# 🔝 TOPO — REF + CUSTO TOTAL (mobile-safe / HTML real)
+    # 🔝 TOPO — REF + CUSTO TOTAL (HTML real e mobile-safe)
+    topo_html = f"""
+    <div style="display:flex; gap:14px; align-items:flex-start; width:100%;">
 
-c1, c2 = st.columns([2, 1])
-
-# ---------- COLUNA ESQUERDA (REF + DESCRIÇÃO)
-with c1:
-    html_ref = f"""
-    <div style="display:flex; flex-direction:column; gap:6px;">
+      <!-- ESQUERDA -->
+      <div style="flex:2; min-width:0;">
         <div style="
-            font-size:13px;
-            letter-spacing:0.12em;
-            color:rgba(255,255,255,0.65);
-            font-weight:600;
+          font-size:13px;
+          letter-spacing:0.12em;
+          color:rgba(255,255,255,0.78);
+          font-weight:800;
+          margin-bottom:6px;
         ">
-            REFERÊNCIA
+          REFERÊNCIA
         </div>
 
         <div style="
-            font-size:clamp(34px, 7vw, 46px);
-            font-weight:900;
-            color:#4DA3FF;
-            line-height:1.05;
-            word-break:break-word;
-            text-shadow:0 0 18px rgba(77,163,255,0.35);
+          font-size:clamp(36px, 7.2vw, 52px);
+          font-weight:950;
+          color:#4DA3FF;
+          line-height:1.02;
+          text-shadow:0 0 18px rgba(77,163,255,0.35);
+          word-break:break-word;
         ">
-            🧾 {ref_txt}
+          🧾 {ref_txt}
         </div>
 
         <div style="
-            font-size:16px;
-            color:rgba(255,255,255,0.90);
-            line-height:1.25;
+          font-size:16px;
+          color:rgba(255,255,255,0.92);
+          line-height:1.25;
+          margin-top:6px;
+          word-break:break-word;
         ">
-            {desc_txt}
+          {desc_txt}
         </div>
-    </div>
-    """
-    st.markdown(html_ref, unsafe_allow_html=True)
+      </div>
 
-# ---------- COLUNA DIREITA (CUSTO TOTAL)
-with c2:
-    html_total = f"""
-    <div style="
-        border:2px solid rgba(0,230,118,0.45);
-        background:linear-gradient(160deg, rgba(0,230,118,0.12), rgba(0,0,0,0.25));
-        border-radius:18px;
-        padding:16px 12px;
-        text-align:center;
-        min-width:140px;
-    ">
+      <!-- DIREITA -->
+      <div style="flex:1; min-width:185px;">
         <div style="
+          border:2px solid rgba(0,230,118,0.45);
+          background:linear-gradient(160deg, rgba(0,230,118,0.12), rgba(0,0,0,0.25));
+          border-radius:18px;
+          padding:16px 12px;
+          text-align:center;
+        ">
+          <div style="
             font-size:12px;
             letter-spacing:0.14em;
-            color:rgba(255,255,255,0.75);
+            color:rgba(255,255,255,0.78);
             margin-bottom:6px;
-        ">
+            font-weight:800;
+          ">
             💰 CUSTO TOTAL
-        </div>
+          </div>
 
-        <div style="
-            font-size:clamp(26px, 6vw, 36px);
-            font-weight:900;
+          <div style="
+            font-size:clamp(24px, 6.3vw, 38px);
+            font-weight:950;
             color:#00E676;
-            line-height:1.15;
+            line-height:1.20;
             white-space:nowrap;
             text-shadow:0 0 18px rgba(0,230,118,0.35);
-        ">
+          ">
             R$ {total:.2f}
+          </div>
         </div>
+      </div>
+
     </div>
     """
-    st.markdown(html_total, unsafe_allow_html=True)
+
+    # components.html garante que não vai aparecer "<div ...>" como texto
+    components.html(topo_html, height=190)
 
     st.divider()
 
     # 📋 DETALHADO
     st.markdown(
-        "<div style='font-size:20px; font-weight:700; margin-bottom:8px;'>DETALHADO</div>",
-        unsafe_allow_html=True
+        "<div style='font-size:20px; font-weight:900; margin-bottom:8px;'>DETALHADO</div>",
+        unsafe_allow_html=True,
     )
 
     tecido = float(item.get("Custo do tecido", 0) or 0)
@@ -199,10 +201,11 @@ with c2:
         data=excel_buffer.getvalue(),
         file_name=f"ficha_{ref_txt}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.stop()
+
 
 # -------------------------------
 # 📌 Leitura tabela Oficina
@@ -291,27 +294,31 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
             "Adicionar serviço",
             options=["(selecione)"] + opcoes,
             index=0,
-            key=f"{prefix}_select"
+            key=f"{prefix}_select",
         )
     with colS2:
         add = st.button(
             "Adicionar",
             use_container_width=True,
             key=f"{prefix}_add_btn",
-            disabled=(escolhido == "(selecione)")
+            disabled=(escolhido == "(selecione)"),
         )
 
     if add and escolhido != "(selecione)":
         linha_df = df[df["servico"] == escolhido].iloc[0].to_dict()
         valor_sugerido = float(linha_df.get("valor_min", 0.0))
 
-        itens.append({
-            "servico": str(linha_df.get("servico", "")),
-            "valor_min": float(linha_df.get("valor_min", 0.0)),
-            "valor_max": float(linha_df.get("valor_max", float(linha_df.get("valor_min", 0.0)))),
-            "nota_ziad": str(linha_df.get("nota_ziad", "")),
-            "valor_real": valor_sugerido
-        })
+        itens.append(
+            {
+                "servico": str(linha_df.get("servico", "")),
+                "valor_min": float(linha_df.get("valor_min", 0.0)),
+                "valor_max": float(
+                    linha_df.get("valor_max", float(linha_df.get("valor_min", 0.0)))
+                ),
+                "nota_ziad": str(linha_df.get("nota_ziad", "")),
+                "valor_real": valor_sugerido,
+            }
+        )
         st.session_state[state_key] = itens
         st.rerun()
 
@@ -341,12 +348,16 @@ def ui_somar_servicos(df: pd.DataFrame, state_key: str, prefix: str):
                         min_value=0.0,
                         value=float(item["valor_real"]),
                         step=0.10,
-                        key=f"{prefix}_real_{idx}"
+                        key=f"{prefix}_real_{idx}",
                     )
                     itens[idx]["valor_real"] = float(novo)
 
                 with c3:
-                    if st.button("Remover", key=f"{prefix}_rem_{idx}", use_container_width=True):
+                    if st.button(
+                        "Remover",
+                        key=f"{prefix}_rem_{idx}",
+                        use_container_width=True,
+                    ):
                         itens.pop(idx)
                         st.session_state[state_key] = itens
                         st.rerun()
@@ -370,7 +381,7 @@ def render_pesquisar():
 
     q = st.text_input(
         "Pesquisar por Referência ou Descrição",
-        placeholder="Ex: 21000 ou 'calça reta'"
+        placeholder="Ex: 21000 ou 'calça reta'",
     ).strip().lower()
 
     df_view = df_hist.copy()
@@ -399,13 +410,17 @@ def render_pesquisar():
         hide_index=True,
         column_config={"Selecionar": st.column_config.CheckboxColumn(required=False)},
         disabled=[c for c in df_sel.columns if c != "Selecionar"],
-        key="editor_hist"
+        key="editor_hist",
     )
 
-    selecionadas = editado[editado["Selecionar"] == True].drop(columns=["Selecionar"], errors="ignore")
+    selecionadas = editado[editado["Selecionar"] == True].drop(
+        columns=["Selecionar"], errors="ignore"
+    )
 
     st.markdown("### 📥 Exportar Excel")
-    exportar_tudo = st.checkbox("Exportar tudo que está filtrado (ignorar seleção)", value=False)
+    exportar_tudo = st.checkbox(
+        "Exportar tudo que está filtrado (ignorar seleção)", value=False
+    )
 
     df_export = df_view if exportar_tudo else selecionadas
 
@@ -419,7 +434,7 @@ def render_pesquisar():
         data=excel_buffer.getvalue(),
         file_name="historico_filtrado.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
+        use_container_width=True,
     )
 
 
@@ -442,8 +457,20 @@ def render_custo():
         st.text_input("Nome do tecido (opcional)", key="tecido_nome")
         st.selectbox("Tipo do tecido", ["Jeans", "Sarja"], key="tecido_tipo")
     with cT2:
-        tecido_preco_m = st.number_input("Tecido (R$/m)", min_value=0.0, value=0.0, step=0.10, key="tecido_preco_m")
-        tecido_consumo_m = st.number_input("Consumo (m)", min_value=0.0, value=0.0, step=0.01, key="tecido_consumo_m")
+        tecido_preco_m = st.number_input(
+            "Tecido (R$/m)",
+            min_value=0.0,
+            value=0.0,
+            step=0.10,
+            key="tecido_preco_m",
+        )
+        tecido_consumo_m = st.number_input(
+            "Consumo (m)",
+            min_value=0.0,
+            value=0.0,
+            step=0.01,
+            key="tecido_consumo_m",
+        )
     with cT3:
         tecido_valor = float(tecido_preco_m) * float(tecido_consumo_m)
         st.metric("Custo do tecido (R$)", f"R$ {tecido_valor:.2f}")
@@ -451,11 +478,29 @@ def render_custo():
     st.subheader("💰 Custos base")
     cb1, cb2, cb3 = st.columns(3)
     with cb1:
-        aviamentos = st.number_input("Aviamentos (R$)", min_value=0.0, value=3.00, step=0.10, key="aviamentos")
+        aviamentos = st.number_input(
+            "Aviamentos (R$)",
+            min_value=0.0,
+            value=3.00,
+            step=0.10,
+            key="aviamentos",
+        )
     with cb2:
-        acabamento = st.number_input("Acabamento (R$)", min_value=0.0, value=1.70, step=0.10, key="acabamento")
+        acabamento = st.number_input(
+            "Acabamento (R$)",
+            min_value=0.0,
+            value=1.70,
+            step=0.10,
+            key="acabamento",
+        )
     with cb3:
-        despesa_fixa = st.number_input("Despesa fixa (R$)", min_value=0.0, value=5.50, step=0.10, key="despesa_fixa")
+        despesa_fixa = st.number_input(
+            "Despesa fixa (R$)",
+            min_value=0.0,
+            value=5.50,
+            step=0.10,
+            key="despesa_fixa",
+        )
 
     despesa_fixa_total = float(despesa_fixa) + float(acabamento)
 
@@ -466,11 +511,27 @@ def render_custo():
     st.subheader("🧼 Lavanderia (valores manuais)")
     col_l1, col_l2, col_l3 = st.columns([2.2, 1.2, 1])
     with col_l1:
-        lav_nome = st.text_input("Nome do serviço", placeholder="Ex: Stone wash, Destroyed...", key="lav_nome")
+        lav_nome = st.text_input(
+            "Nome do serviço",
+            placeholder="Ex: Stone wash, Destroyed...",
+            key="lav_nome",
+        )
     with col_l2:
-        lav_valor = st.number_input("Valor (R$)", min_value=0.0, value=0.0, step=0.10, key="lav_valor", disabled=not lav_nome.strip())
+        lav_valor = st.number_input(
+            "Valor (R$)",
+            min_value=0.0,
+            value=0.0,
+            step=0.10,
+            key="lav_valor",
+            disabled=not lav_nome.strip(),
+        )
     with col_l3:
-        lav_add = st.button("Adicionar", use_container_width=True, key="lav_add", disabled=not lav_nome.strip())
+        lav_add = st.button(
+            "Adicionar",
+            use_container_width=True,
+            key="lav_add",
+            disabled=not lav_nome.strip(),
+        )
 
     nomes_lav = {i["nome"].strip().lower() for i in st.session_state.lavanderia_manual_itens}
     if lav_add:
@@ -478,16 +539,25 @@ def render_custo():
         if nome_limpo.lower() in nomes_lav:
             st.warning("Esse serviço já foi adicionado.")
         else:
-            st.session_state.lavanderia_manual_itens.append({"nome": nome_limpo, "valor": float(lav_valor)})
+            st.session_state.lavanderia_manual_itens.append(
+                {"nome": nome_limpo, "valor": float(lav_valor)}
+            )
             st.rerun()
 
     cols_lav = st.columns(3)
-    for idx, item in enumerate(st.session_state.lavanderia_manual_itens):
+    for idx, item_lav in enumerate(st.session_state.lavanderia_manual_itens):
         col = cols_lav[idx % 3]
         with col:
             with st.container(border=True):
-                st.write(f"**{item['nome']}**")
-                val = st.number_input("R$", min_value=0.0, value=float(item["valor"]), step=0.10, key=f"lav_item_{idx}", label_visibility="collapsed")
+                st.write(f"**{item_lav['nome']}**")
+                val = st.number_input(
+                    "R$",
+                    min_value=0.0,
+                    value=float(item_lav["valor"]),
+                    step=0.10,
+                    key=f"lav_item_{idx}",
+                    label_visibility="collapsed",
+                )
                 st.session_state.lavanderia_manual_itens[idx]["valor"] = float(val)
 
                 if st.button("Remover", key=f"lav_rem_{idx}", use_container_width=True):
@@ -500,11 +570,25 @@ def render_custo():
     st.subheader("➕ Adicionais (valores manuais)")
     col_a1, col_a2, col_a3 = st.columns([2.2, 1.2, 1])
     with col_a1:
-        novo_nome = st.text_input("Nome do adicional", placeholder="Ex: Zíper, Etiqueta...", key="add_nome")
+        novo_nome = st.text_input(
+            "Nome do adicional", placeholder="Ex: Zíper, Etiqueta...", key="add_nome"
+        )
     with col_a2:
-        novo_valor = st.number_input("Valor (R$)", min_value=0.0, value=0.0, step=0.10, key="add_valor", disabled=not novo_nome.strip())
+        novo_valor = st.number_input(
+            "Valor (R$)",
+            min_value=0.0,
+            value=0.0,
+            step=0.10,
+            key="add_valor",
+            disabled=not novo_nome.strip(),
+        )
     with col_a3:
-        add_novo = st.button("Adicionar", use_container_width=True, key="add_btn", disabled=not novo_nome.strip())
+        add_novo = st.button(
+            "Adicionar",
+            use_container_width=True,
+            key="add_btn",
+            disabled=not novo_nome.strip(),
+        )
 
     nomes_existentes = {i["nome"].strip().lower() for i in st.session_state.adicionais_itens}
     if add_novo:
@@ -512,16 +596,25 @@ def render_custo():
         if nome_limpo.lower() in nomes_existentes:
             st.warning("Esse adicional já existe.")
         else:
-            st.session_state.adicionais_itens.append({"nome": nome_limpo, "valor": float(novo_valor)})
+            st.session_state.adicionais_itens.append(
+                {"nome": nome_limpo, "valor": float(novo_valor)}
+            )
             st.rerun()
 
     cols = st.columns(3)
-    for idx, item in enumerate(st.session_state.adicionais_itens):
+    for idx, item_ad in enumerate(st.session_state.adicionais_itens):
         col = cols[idx % 3]
         with col:
             with st.container(border=True):
-                st.write(f"**{item['nome']}**")
-                val = st.number_input("R$", min_value=0.0, value=float(item["valor"]), step=0.10, key=f"ad_val_{idx}", label_visibility="collapsed")
+                st.write(f"**{item_ad['nome']}**")
+                val = st.number_input(
+                    "R$",
+                    min_value=0.0,
+                    value=float(item_ad["valor"]),
+                    step=0.10,
+                    key=f"ad_val_{idx}",
+                    label_visibility="collapsed",
+                )
                 st.session_state.adicionais_itens[idx]["valor"] = float(val)
 
                 if idx >= 5:
@@ -565,7 +658,9 @@ def render_custo():
 
     b1, b2 = st.columns(2)
     with b1:
-        btn_add_hist = st.button("➕ Adicionar ao histórico", type="primary", use_container_width=True)
+        btn_add_hist = st.button(
+            "➕ Adicionar ao histórico", type="primary", use_container_width=True
+        )
     with b2:
         btn_qr = st.button("🧾 Gerar QR (Ficha)", use_container_width=True)
 
@@ -608,7 +703,7 @@ def render_custo():
                 data=png,
                 file_name=f"qr_{linha_padrao['Referência']}.png",
                 mime="image/png",
-                use_container_width=True
+                use_container_width=True,
             )
 
     st.divider()
@@ -622,11 +717,7 @@ def render_custo():
         ultimas = ultimas[["Referência", "Descrição", "Total"]]
         ultimas["Total"] = pd.to_numeric(ultimas["Total"], errors="coerce").fillna(0.0)
 
-        st.dataframe(
-            ultimas,
-            use_container_width=True,
-            hide_index=True
-        )
+        st.dataframe(ultimas, use_container_width=True, hide_index=True)
 
     if st.button("🔎 Abrir Pesquisa / Exportar Excel", use_container_width=True):
         st.session_state.pagina = "pesquisar"
