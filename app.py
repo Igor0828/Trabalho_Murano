@@ -5,6 +5,7 @@ from pathlib import Path
 from io import BytesIO
 import qrcode
 import streamlit.components.v1 as components
+import textwrap
 
 from utils.calculo import calcular_custo_total
 from utils.excel import gerar_excel_simples, gerar_excel_multiplos
@@ -241,82 +242,76 @@ if view == "ficha" and ref_qr:
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-    # 🔝 TOPO — REF + CUSTO TOTAL (mobile safe / sem cortar)
-    c1, c2 = st.columns([2, 1])
+# 🔝 TOPO — REF + CUSTO TOTAL (mobile safe / sem virar código)
+c1, c2 = st.columns([2, 1])
 
-    with c1:
-        st.markdown(
-            f"""
-            <div style="display:flex; flex-direction:column; gap:6px;">
-                <div style="
-                    font-size:13px;
-                    letter-spacing:0.12em;
-                    color: rgba(255,255,255,0.75);
-                    font-weight:700;
-                ">
-                    REFERÊNCIA
-                </div>
+with c1:
+    html_ref = f"""
+<div style="display:flex; flex-direction:column; gap:6px;">
+  <div style="
+      font-size:13px;
+      letter-spacing:0.12em;
+      color: rgba(255,255,255,0.75);
+      font-weight:700;
+  ">
+    REFERÊNCIA
+  </div>
 
-                <div style="
-                    font-size:clamp(34px, 7vw, 46px);
-                    font-weight:900;
-                    color:#4DA3FF;
-                    line-height:1.05;
-                    text-shadow: 0 0 18px rgba(77,163,255,0.30);
-                    word-break: break-word;
-                ">
-                    🧾 {ref_txt}
-                </div>
+  <div style="
+      font-size:clamp(34px, 7vw, 46px);
+      font-weight:900;
+      color:#4DA3FF;
+      line-height:1.05;
+      text-shadow: 0 0 18px rgba(77,163,255,0.30);
+      word-break: break-word;
+  ">
+    🧾 {ref_txt}
+  </div>
 
-                <div style="
-                    font-size:16px;
-                    color: rgba(255,255,255,0.90);
-                    line-height:1.25;
-                ">
-                    {desc_txt}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+  <div style="
+      font-size:16px;
+      color: rgba(255,255,255,0.90);
+      line-height:1.25;
+  ">
+    {desc_txt}
+  </div>
+</div>
+"""
+    st.markdown(textwrap.dedent(html_ref).strip(), unsafe_allow_html=True)
 
-    with c2:
-        st.markdown(
-            f"""
-            <div style="
-                border: 2px solid rgba(0,255,140,0.35);
-                background: rgba(0,255,140,0.08);
-                border-radius: 16px;
-                padding: 14px 12px;
-                text-align: center;
-                overflow: hidden;
-            ">
-                <div style="
-                    font-size:12px;
-                    letter-spacing:0.14em;
-                    color: rgba(255,255,255,0.75);
-                    font-weight:700;
-                    margin-bottom:8px;
-                ">
-                    💰 CUSTO TOTAL
-                </div>
+with c2:
+    html_total = f"""
+<div style="
+    border: 2px solid rgba(0,255,140,0.35);
+    background: rgba(0,255,140,0.08);
+    border-radius: 16px;
+    padding: 14px 12px;
+    text-align: center;
+    overflow: hidden;
+">
+  <div style="
+      font-size:12px;
+      letter-spacing:0.14em;
+      color: rgba(255,255,255,0.75);
+      font-weight:700;
+      margin-bottom:8px;
+  ">
+    💰 CUSTO TOTAL
+  </div>
 
-                <div style="
-                    font-size:clamp(26px, 6vw, 36px);
-                    font-weight:900;
-                    color:#00E676;
-                    text-shadow: 0 0 18px rgba(0,230,118,0.30);
-                    line-height:1.15;
-                    white-space: nowrap;
-                ">
-                    R$ {total:.2f}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.divider()
+  <div style="
+      font-size:clamp(26px, 6vw, 36px);
+      font-weight:900;
+      color:#00E676;
+      text-shadow: 0 0 18px rgba(0,230,118,0.30);
+      line-height:1.15;
+      white-space: nowrap;
+  ">
+    R$ {total:.2f}
+  </div>
+</div>
+"""
+    st.markdown(textwrap.dedent(html_total).strip(), unsafe_allow_html=True)
 
     # 📋 DETALHADO
     st.markdown(
