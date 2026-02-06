@@ -689,7 +689,7 @@ def render_custo():
         else:
             try:
                 salvar_historico(linha_padrao)
-                st.success("✅ Adicionado ao histórico (Supabase)!")
+                st.success("✅ Adicionado ao histórico!")
             except Exception as e:
                 st.error(f"Erro ao salvar no Supabase: {e}")
 
