@@ -91,12 +91,12 @@ if view == "ficha" and ref_qr:
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-    # 🔝 TOPO — REF + CUSTO TOTAL (HTML real e mobile-safe)
+        # 🔝 TOPO — REF/Descrição em cima + Custo Total embaixo (antes do DETALHADO)
     topo_html = f"""
-    <div style="display:flex; gap:14px; align-items:flex-start; width:100%;">
+    <div style="width:100%;">
 
-      <!-- ESQUERDA -->
-      <div style="flex:2; min-width:0;">
+      <!-- REF + DESCRIÇÃO (EM CIMA) -->
+      <div style="margin-bottom:14px;">
         <div style="
           font-size:13px;
           letter-spacing:0.12em;
@@ -129,13 +129,19 @@ if view == "ficha" and ref_qr:
         </div>
       </div>
 
-      <!-- DIREITA -->
-      <div style="flex:1; min-width:185px;">
+      <!-- CUSTO TOTAL (EMBAIXO) -->
+      <div style="
+        width:100%;
+        display:flex;
+        justify-content:center;
+        margin-top:6px;
+      ">
         <div style="
+          width:min(420px, 100%);
           border:2px solid rgba(0,230,118,0.45);
           background:linear-gradient(160deg, rgba(0,230,118,0.12), rgba(0,0,0,0.25));
           border-radius:18px;
-          padding:16px 12px;
+          padding:16px 14px;
           text-align:center;
         ">
           <div style="
@@ -149,10 +155,10 @@ if view == "ficha" and ref_qr:
           </div>
 
           <div style="
-            font-size:clamp(24px, 6.3vw, 38px);
+            font-size:clamp(28px, 7vw, 44px);
             font-weight:950;
             color:#00E676;
-            line-height:1.20;
+            line-height:1.15;
             white-space:nowrap;
             text-shadow:0 0 18px rgba(0,230,118,0.35);
           ">
@@ -164,8 +170,7 @@ if view == "ficha" and ref_qr:
     </div>
     """
 
-    # components.html garante que não vai aparecer "<div ...>" como texto
-    components.html(topo_html, height=190)
+    components.html(topo_html, height=250)
 
     st.divider()
 
