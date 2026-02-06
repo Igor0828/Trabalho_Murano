@@ -242,6 +242,91 @@ if view == "ficha" and ref_qr:
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
+# 🔝 TOPO — REF + CUSTO TOTAL (mobile-safe / sem cortar)
+
+c1, c2 = st.columns([2, 1])
+
+# ---------- COLUNA ESQUERDA (REF + DESCRIÇÃO)
+with c1:
+    st.markdown(
+        f"""
+        <div style="display:flex; flex-direction:column; gap:6px;">
+
+            <div style="
+                font-size:13px;
+                letter-spacing:0.12em;
+                color:rgba(255,255,255,0.65);
+                font-weight:600;
+            ">
+                REFERÊNCIA
+            </div>
+
+            <div style="
+                font-size:clamp(34px, 7vw, 46px);
+                font-weight:900;
+                color:#4DA3FF;
+                line-height:1.05;
+                word-break:break-word;
+                text-shadow:0 0 18px rgba(77,163,255,0.35);
+            ">
+                🧾 {ref_txt}
+            </div>
+
+            <div style="
+                font-size:16px;
+                color:rgba(255,255,255,0.90);
+                line-height:1.25;
+                margin-top:2px;
+            ">
+                {desc_txt}
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# ---------- COLUNA DIREITA (CUSTO TOTAL)
+with c2:
+    st.markdown(
+        f"""
+        <div style="
+            border:2px solid rgba(0,230,118,0.45);
+            background:linear-gradient(160deg, rgba(0,230,118,0.12), rgba(0,0,0,0.25));
+            border-radius:18px;
+            padding:16px 12px;
+            text-align:center;
+            min-width:140px;
+        ">
+
+            <div style="
+                font-size:12px;
+                letter-spacing:0.14em;
+                color:rgba(255,255,255,0.75);
+                margin-bottom:6px;
+            ">
+                💰 CUSTO TOTAL
+            </div>
+
+            <div style="
+                font-size:clamp(26px, 6vw, 36px);
+                font-weight:900;
+                color:#00E676;
+                line-height:1.15;
+                white-space:nowrap;
+                text-shadow:0 0 18px rgba(0,230,118,0.35);
+            ">
+                R$ {total:.2f}
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.divider()
+
+st.divider()
 # 🔝 TOPO — REF + CUSTO TOTAL (mobile safe / sem virar código)
 c1, c2 = st.columns([2, 1])
 
