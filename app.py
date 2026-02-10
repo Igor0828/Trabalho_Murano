@@ -108,18 +108,18 @@ if view == "ficha" and ref_qr:
         </div>
 
         <div style="
-          font-size:clamp(36px, 7.2vw, 52px);
+          font-size:clamp(42px, 8vw, 64px);
           font-weight:950;
           color:#4DA3FF;
           line-height:1.02;
           text-shadow:0 0 18px rgba(77,163,255,0.35);
           word-break:break-word;
         ">
-          🧾 {ref_txt}
+      🧾 {ref_txt}
         </div>
 
         <div style="
-          font-size:16px;
+          font-size:clamp(16px, 3.8vw, 20px);
           color:rgba(255,255,255,0.92);
           line-height:1.25;
           margin-top:6px;
@@ -155,7 +155,7 @@ if view == "ficha" and ref_qr:
           </div>
 
           <div style="
-            font-size:clamp(28px, 7vw, 44px);
+            font-size:clamp(32px, 7.5vw, 50px);
             font-weight:950;
             color:#00E676;
             line-height:1.15;
