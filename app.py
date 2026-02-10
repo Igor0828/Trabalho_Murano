@@ -91,76 +91,76 @@ if view == "ficha" and ref_qr:
     desc_txt = str(item.get("Descrição", "")).strip()
     total = float(item.get("Total", 0) or 0)
 
-        # 🔝 TOPO — REF/Descrição em cima + Custo Total embaixo (antes do DETALHADO)
+    # 🔝 TOPO — REF + DESCRIÇÃO (em cima) + CUSTO TOTAL (embaixo)
     topo_html = f"""
     <div style="width:100%;">
 
-      <!-- REF + DESCRIÇÃO (EM CIMA) -->
-      <div style="margin-bottom:14px;">
+      <!-- REFERÊNCIA + DESCRIÇÃO -->
+      <div style="margin-bottom:20px;">
         <div style="
-          font-size:13px;
-          letter-spacing:0.12em;
-          color:rgba(255,255,255,0.78);
-          font-weight:800;
-          margin-bottom:6px;
+          font-size:14px;
+          letter-spacing:0.14em;
+          color:rgba(255,255,255,0.80);
+          font-weight:900;
+          margin-bottom:8px;
         ">
           REFERÊNCIA
         </div>
 
         <div style="
-          font-size:clamp(42px, 8vw, 64px);
+          font-size:clamp(52px, 10vw, 80px);
           font-weight:950;
           color:#4DA3FF;
           line-height:1.02;
-          text-shadow:0 0 18px rgba(77,163,255,0.35);
+          text-shadow:0 0 20px rgba(77,163,255,0.40);
           word-break:break-word;
         ">
-      🧾 {ref_txt}
+          🧾 {ref_txt}
         </div>
 
         <div style="
-          font-size:clamp(16px, 3.8vw, 20px);
+          font-size:clamp(18px, 4.5vw, 24px);
           color:rgba(255,255,255,0.92);
-          line-height:1.25;
-          margin-top:6px;
+          line-height:1.3;
+          margin-top:10px;
           word-break:break-word;
         ">
           {desc_txt}
         </div>
       </div>
 
-      <!-- CUSTO TOTAL (EMBAIXO) -->
+      <!-- CUSTO TOTAL -->
       <div style="
         width:100%;
         display:flex;
         justify-content:center;
-        margin-top:6px;
+        margin-top:10px;
       ">
         <div style="
-          width:min(420px, 100%);
-          border:2px solid rgba(0,230,118,0.45);
-          background:linear-gradient(160deg, rgba(0,230,118,0.12), rgba(0,0,0,0.25));
-          border-radius:18px;
-          padding:16px 14px;
+          width:min(460px, 100%);
+          border:2px solid rgba(0,230,118,0.50);
+          background:linear-gradient(160deg, rgba(0,230,118,0.14), rgba(0,0,0,0.30));
+          border-radius:20px;
+          padding:20px 16px;
           text-align:center;
         ">
           <div style="
-            font-size:12px;
-            letter-spacing:0.14em;
-            color:rgba(255,255,255,0.78);
-            margin-bottom:6px;
-            font-weight:800;
+            font-size:13px;
+            letter-spacing:0.16em;
+            color:rgba(255,255,255,0.80);
+            margin-bottom:8px;
+            font-weight:900;
           ">
             💰 CUSTO TOTAL
           </div>
 
           <div style="
-            font-size:clamp(32px, 7.5vw, 50px);
+            font-size:clamp(36px, 8.5vw, 56px);
             font-weight:950;
             color:#00E676;
             line-height:1.15;
             white-space:nowrap;
-            text-shadow:0 0 18px rgba(0,230,118,0.35);
+            text-shadow:0 0 20px rgba(0,230,118,0.40);
           ">
             R$ {total:.2f}
           </div>
@@ -170,13 +170,14 @@ if view == "ficha" and ref_qr:
     </div>
     """
 
-    components.html(topo_html, height=250)
+    # altura maior para não cortar nada
+    components.html(topo_html, height=320)
 
     st.divider()
 
     # 📋 DETALHADO
     st.markdown(
-        "<div style='font-size:20px; font-weight:900; margin-bottom:8px;'>DETALHADO</div>",
+        "<div style='font-size:22px; font-weight:900; margin-bottom:10px;'>DETALHADO</div>",
         unsafe_allow_html=True,
     )
 
@@ -199,7 +200,7 @@ if view == "ficha" and ref_qr:
 
     st.divider()
 
-    # 📥 Excel (opcional)
+    # 📥 Excel
     excel_buffer = gerar_excel_simples(item)
     st.download_button(
         "📥 Baixar Excel",
@@ -210,7 +211,6 @@ if view == "ficha" and ref_qr:
     )
 
     st.stop()
-
 
 # -------------------------------
 # 📌 Leitura tabela Oficina
